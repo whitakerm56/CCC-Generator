@@ -553,52 +553,6 @@ function setBadge(section,rating,feedback){
   document.getElementById(`fb-${section}`).textContent=feedback||'';
 }
 
-// ── JSON REPAIR — salvages truncated API responses ────────
-function repairJSON(str) {
-  const result = {
-    quality: 'Needs Detail',
-    feedback: '',
-    questions: [],
-    oem_steps: [],
-    tsbs: [],
-    common_causes: []
-  };
-
-  // Pull quality
-  const qm = str.match(/"quality"\s*:\s*"([^"]+)"/);
-  if (qm) result.quality = qm[1];
-
-  // Pull feedback
-  const fm = str.match(/"feedback"\s*:\s*"([^"]+)"/);
-  if (fm) result.feedback = fm[1];
-
-  // Pull arrays — grab every quoted string inside each array block
-  const pullArray = (key) => {
-    const block = str.match(new RegExp(`"${key}"\\s*:\\s*\\[([\\s\\S]*?)(?:\\]|$)`));
-    if (!block) return [];
-    return [...block[1].matchAll(/"((?:[^"\\]|\\.)*)"/g)]
-      .map(m => m[1].replace(/\\"/g, '"').replace(/\\n/g, ' ').trim())
-      .filter(s => s.length > 3);
-  };
-
-  result.questions     = pullArray('questions');
-  result.oem_steps     = pullArray('oem_steps');
-  result.common_causes = pullArray('common_causes');
-
-  // TSBs are objects — pull id/title/detail triplets
-  const tsbBlock = str.match(/"tsbs"\s*:\s*\[([\s\S]*?)(?:\]|$)/);
-  if (tsbBlock) {
-    const ids     = [...tsbBlock[1].matchAll(/"id"\s*:\s*"([^"]+)"/g)].map(m=>m[1]);
-    const titles  = [...tsbBlock[1].matchAll(/"title"\s*:\s*"([^"]+)"/g)].map(m=>m[1]);
-    const details = [...tsbBlock[1].matchAll(/"detail"\s*:\s*"([^"]+)"/g)].map(m=>m[1]);
-    ids.forEach((id, i) => {
-      result.tsbs.push({ id, title: titles[i]||'', detail: details[i]||'' });
-    });
-  }
-
-  return result;
-}
-
 // ── AUTO-GENERATE (debounced per section) ─────────────────
 const DEBOUNCE_MS = 1500;
 const MIN_CHARS   = 12;
@@ -689,63 +643,92 @@ YOUR TASKS FOR THIS SECTION:
    - "Strong" = thorough, specific, professionally documented
 
 2. DIAGNOSTIC QUESTIONS — ${section === 'complaint'
-  ? 'Generate questions a SERVICE ADVISOR should ask the CUSTOMER to build a complete, accurate symptom description. Questions must be customer-facing — plain language, no technical jargon. Focus entirely on what the customer experienced, not on diagnosis or repair.'
-  : 'Generate targeted questions that a Service Advisor should ask the technician and a Claims Adjuster should ask the repair facility to verify this section is complete, accurate, and supportable.'
+  ? 'Generate questions a SERVICE ADVISOR should ask the CUSTOMER to build a complete, accurate symptom description. Plain language only — no technical jargon, no mention of DTCs or codes.'
+  : 'Generate targeted questions a Service Advisor should ask the technician and a Claims Adjuster should ask the repair facility to verify this section is complete and defensible.'
 }
 
-3. OEM DIAGNOSTIC PROCEDURE — Based on the vehicle and DTCs, list the actual OEM-recommended diagnostic steps a technician should follow for this specific complaint/code combination. Be specific to the vehicle make/model/year if known. Reference factory scan tool PIDs, voltage specs, pressure specs, or resistance values where applicable. If a specific OEM procedure is well established, name it (e.g. "Ford KOEO/KOER self-test", "GM Mode 6 misfire data", "Toyota SFI system check A").
+3. OEM DIAGNOSTIC PROCEDURE — The actual factory-recommended diagnostic steps for this complaint/code/vehicle. Reference specific PIDs, voltage specs, pressure specs, or named OEM procedures where applicable.
 
-4. KNOWN TSBs — List any Technical Service Bulletins you are aware of that apply to this vehicle and the codes or complaint described. Include the TSB number if known, the affected vehicles, and what the bulletin addresses. If you are not certain of an exact TSB number, describe the known issue pattern instead. Be honest if your TSB knowledge for this specific vehicle is limited.
+4. KNOWN TSBs — Any TSBs you are aware of for this vehicle and codes. Include TSB number if known. Be honest if knowledge is limited.
 
-5. COMMON FAILURE PATTERNS — For the DTCs and vehicle described, list the most statistically common root causes in order of likelihood based on real-world diagnostic experience.
+5. COMMON FAILURE PATTERNS — Most statistically common root causes ranked by likelihood.
 
-Respond ONLY with valid JSON — no markdown, no extra text:
-{
-  "quality": "Weak|Needs Detail|Good|Strong",
-  "feedback": "One sentence of actionable feedback on this section.",
-  "questions": ["Q1?","Q2?","Q3?","Q4?","Q5?","Q6?"],
-  "oem_steps": ["Step 1: ...", "Step 2: ...", "Step 3: ...", "Step 4: ...", "Step 5: ..."],
-  "tsbs": [
-    {"id": "TSB number or N/A", "title": "Brief title", "detail": "What it addresses and affected vehicles"}
-  ],
-  "common_causes": ["Most likely cause first", "Second most likely", "Third most likely"]
-}`;
+Output using EXACTLY these markers — no JSON, no markdown, no extra formatting:
+
+QUALITY: Weak
+FEEDBACK: One sentence of feedback here.
+QUESTIONS:
+- First question here?
+- Second question here?
+- Third question here?
+- Fourth question here?
+- Fifth question here?
+- Sixth question here?
+OEM_STEPS:
+- Step one
+- Step two
+- Step three
+- Step four
+- Step five
+TSBS:
+- ID: TSB-XXXX | TITLE: Short title | DETAIL: What it addresses
+CAUSES:
+- Most likely cause
+- Second most likely
+- Third most likely`;
 
   try {
     const res = await fetch('https://ccc-proxy.whitakerm56.workers.dev/', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 4096,
+        stream: true,
         messages: [{ role: 'user', content: prompt }]
       })
     });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
 
-    const raw     = (data.content || []).map(b => b.text || '').join('');
-    const cleaned = raw.replace(/```json|```/g, '').trim();
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    let parsed;
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch(jsonErr) {
-      // Response was truncated — attempt to salvage what we have
-      parsed = repairJSON(cleaned);
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let   buffer  = '';
+    let   fullText = '';
+
+    // Streaming state
+    const state = {
+      quality: null, feedback: null,
+      questions: [], oem_steps: [], tsbs: [], causes: [],
+      section: null  // current section being parsed
+    };
+
+    const container = document.getElementById(`qp-${section}`);
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // keep incomplete line
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') continue;
+        try {
+          const evt = JSON.parse(data);
+          if (evt.type === 'content_block_delta' && evt.delta?.text) {
+            fullText += evt.delta.text;
+            parseStreaming(fullText, state, section, container, dtcs);
+          }
+        } catch(e) {}
+      }
     }
 
-    setBadge(section, parsed.quality, parsed.feedback);
-    renderPills(
-      `qp-${section}`,
-      parsed.questions,
-      section === 'cause' ? dtcs : [],
-      parsed.oem_steps || [],
-      parsed.tsbs || [],
-      parsed.common_causes || []
-    );
+    // Final parse pass to catch anything left in buffer
+    parseStreaming(fullText, state, section, container, dtcs, true);
     document.getElementById(`ts-${section}`).innerHTML = '';
 
   } catch(e) {
@@ -753,6 +736,57 @@ Respond ONLY with valid JSON — no markdown, no extra text:
       `<div class="q-empty" style="color:var(--red);">Error: ${e.message}</div>`;
     document.getElementById(`ts-${section}`).innerHTML =
       `<span style="color:var(--red)">Error</span>`;
+  }
+}
+
+function parseStreaming(text, state, section, container, dtcs, final = false) {
+  const lines = text.split('\n');
+
+  // Extract quality + feedback immediately when available
+  if (!state.quality) {
+    const qm = text.match(/^QUALITY:\s*(.+)$/m);
+    if (qm) {
+      state.quality = qm[1].trim();
+      setBadge(section, state.quality, '');
+    }
+  }
+  if (!state.feedback) {
+    const fm = text.match(/^FEEDBACK:\s*(.+)$/m);
+    if (fm) {
+      state.feedback = fm[1].trim();
+      setBadge(section, state.quality || 'Needs Detail', state.feedback);
+    }
+  }
+
+  // Parse sections — collect items per marker
+  const parsed = { questions:[], oem_steps:[], tsbs:[], causes:[] };
+  let cur = null;
+
+  for (const line of lines) {
+    const t = line.trim();
+    if (t === 'QUESTIONS:')   { cur = 'questions';  continue; }
+    if (t === 'OEM_STEPS:')   { cur = 'oem_steps';  continue; }
+    if (t === 'TSBS:')        { cur = 'tsbs';        continue; }
+    if (t === 'CAUSES:')      { cur = 'causes';      continue; }
+    if (/^(QUALITY|FEEDBACK|QUESTIONS|OEM_STEPS|TSBS|CAUSES):/.test(t)) {
+      cur = null; continue;
+    }
+    if (cur && t.startsWith('- ')) {
+      parsed[cur].push(t.slice(2).trim());
+    }
+  }
+
+  // Only update UI if we have more items than before (avoids flicker)
+  const grew =
+    parsed.questions.length  > state.questions.length  ||
+    parsed.oem_steps.length  > state.oem_steps.length  ||
+    parsed.tsbs.length       > state.tsbs.length        ||
+    parsed.causes.length     > state.causes.length      ||
+    final;
+
+  if (grew) {
+    Object.assign(state, parsed);
+    renderPills(`qp-${section}`, state.questions, [], state.oem_steps, state.tsbs, state.causes);
   }
 }
 
@@ -789,10 +823,22 @@ function renderPills(containerId, questions, dtcList, oemSteps, tsbs, commonCaus
   if (tsbs && tsbs.length) {
     html += `<div class="q-section-label">KNOWN TSBs</div>`;
     tsbs.forEach(t => {
+      // Handle both object format and pipe-delimited string format
+      let id, title, detail;
+      if (typeof t === 'string') {
+        const idM    = t.match(/ID:\s*([^|]+)/i);
+        const titleM = t.match(/TITLE:\s*([^|]+)/i);
+        const detailM= t.match(/DETAIL:\s*(.+)/i);
+        id     = idM    ? idM[1].trim()    : 'Known Issue';
+        title  = titleM ? titleM[1].trim() : '';
+        detail = detailM? detailM[1].trim(): t;
+      } else {
+        id = t.id; title = t.title; detail = t.detail;
+      }
       html += `<div class="q-pill tsb-pill">
-        <div class="tsb-pill-id">${t.id && t.id !== 'N/A' ? t.id : 'Known Issue'}</div>
-        <div class="tsb-pill-title">${t.title || ''}</div>
-        <div class="tsb-pill-detail">${t.detail || ''}</div>
+        <div class="tsb-pill-id">${id && id !== 'N/A' ? id : 'Known Issue'}</div>
+        <div class="tsb-pill-title">${title || ''}</div>
+        <div class="tsb-pill-detail">${detail || ''}</div>
       </div>`;
     });
   }
