@@ -332,6 +332,7 @@ footer a{color:var(--text3);}
           <button class="apply-btn" onclick="applyManual()">Apply</button>
         </div>
       </div>
+      <div id="vin-alert" style="display:none; margin-top:10px; padding:8px 12px; border-radius:7px; font-size:12px;"></div>
     </div>
 
     <!-- VEHICLE INFO -->
@@ -471,6 +472,18 @@ footer a{color:var(--text3);}
 let veh = {year:'',make:'',model:'',trim:'',engine:'',trans:''};
 
 // ── ALERTS ────────────────────────────────────────────────
+function showVinAlert(msg, type='ok', dur=3500){
+  const el = document.getElementById('vin-alert');
+  const styles = {
+    ok:   'background:var(--green-bg);border:1px solid rgba(74,222,128,.3);color:var(--green);',
+    err:  'background:var(--red-bg);border:1px solid rgba(248,113,113,.3);color:var(--red);',
+    warn: 'background:var(--amber-bg);border:1px solid rgba(251,191,36,.3);color:var(--amber);'
+  };
+  el.setAttribute('style', `display:block; margin-top:10px; padding:8px 12px; border-radius:7px; font-size:12px; ${styles[type]}`);
+  el.textContent = msg;
+  if(dur) setTimeout(() => { el.style.display = 'none'; }, dur);
+}
+
 function alert_show(msg,type='warn',dur=4000){
   const a=document.getElementById('alert-area');
   const d=document.createElement('div');
@@ -495,7 +508,7 @@ function applyManual(){
   veh.engine = document.getElementById('m-engine').value.trim();
   veh.trans  = '';
   renderVeh();
-  if(veh.year||veh.make||veh.model) alert_show('Vehicle info applied.','ok',2000);
+  if(veh.year||veh.make||veh.model) showVinAlert('✓ Vehicle info applied.','ok',2000);
 }
 
 // ── VIN DECODE ────────────────────────────────────────────
@@ -516,8 +529,8 @@ async function decodeVIN(){
     veh.engine=[disp?disp+'L':'',cyl?cyl+'-cyl':'',fuel].filter(Boolean).join(' ');
     veh.trans=get('Transmission Style');
     renderVeh();
-    alert_show(`Decoded: ${veh.year} ${veh.make} ${veh.model}`,'ok',3000);
-  }catch(e){alert_show('VIN decode failed — check the number and try again.','err',4000);}
+    showVinAlert(`✓ Decoded: ${veh.year} ${veh.make} ${veh.model}`,'ok',3500);
+  }catch(e){showVinAlert('VIN decode failed — check the number and try again.','err',4000);}
   finally{btn.disabled=false;btn.textContent='Decode';}
 }
 
@@ -642,9 +655,9 @@ async function generateSection(section) {
     `<div class="q-loading"><div class="spin"></div>Analyzing ${sectionLabel}...</div>`;
 
   const sectionFocus = {
-    complaint:`Focus on: confirming the complaint is fully documented, whether the condition was duplicated, symptom frequency and conditions, any related warning lights or sounds, and customer history with this issue.`,
-    cause:`Focus on: what diagnostic procedure was followed, specific measurements (voltage, pressure, resistance) vs. factory spec, whether TSBs or known issues apply, how the root cause was isolated and confirmed, and whether the failure is primary or secondary.`,
-    correction:`Focus on: whether the repair matches the confirmed root cause, OEM vs. aftermarket parts used, part numbers and quantities, labor operations performed, whether the repair was verified with a road test and DTC retest, and warranty coverage criteria.`
+    complaint:`The COMPLAINT section is the customer's voice — what they told the Service Advisor when they brought the vehicle in. The questions generated here are for a SERVICE ADVISOR to ask the CUSTOMER to extract a complete, accurate symptom description. These questions should help the advisor gather: exactly what the customer is experiencing, when and how often it happens, under what conditions (cold start, highway speed, after rain, under load, etc.), how long it has been occurring, whether any warning lights are on, whether any recent repairs or events preceded the issue, and any sounds, smells, or sensations the customer noticed. The goal is a symptom picture detailed enough that a technician can attempt to duplicate the condition. Do NOT generate questions about diagnosis, parts, or repair — that is not the customer's domain.`,
+    cause:`Focus on: what specific diagnostic procedure was followed step by step, exact measurements taken (voltage, resistance, pressure, flow rate) vs. factory specification, what scan data and live PIDs were observed, whether the technician confirmed the root cause vs. treating a symptom, whether the failure is primary or secondary to another condition, and whether applicable TSBs were checked and followed.`,
+    correction:`Focus on: whether the repair directly addresses the confirmed root cause, OEM vs. aftermarket parts used and why, part numbers and quantities, specific labor operations performed, whether the vehicle was road tested and DTCs retested after repair, and whether the repair meets warranty coverage criteria including authorized parts and procedures.`
   }[section];
 
   const prompt = `You are a master automotive diagnostic consultant with encyclopedic knowledge of OEM repair procedures, Technical Service Bulletins, known failure patterns, and factory diagnostic routines for all major vehicle makes and models.
@@ -670,7 +683,10 @@ YOUR TASKS FOR THIS SECTION:
    - "Good" = solid with minor gaps
    - "Strong" = thorough, specific, professionally documented
 
-2. DIAGNOSTIC QUESTIONS — Generate targeted questions that both a Service Advisor asking a technician and a Claims Adjuster asking the repair facility would need answered.
+2. DIAGNOSTIC QUESTIONS — ${section === 'complaint'
+  ? 'Generate questions a SERVICE ADVISOR should ask the CUSTOMER to build a complete, accurate symptom description. Questions must be customer-facing — plain language, no technical jargon. Focus entirely on what the customer experienced, not on diagnosis or repair.'
+  : 'Generate targeted questions that a Service Advisor should ask the technician and a Claims Adjuster should ask the repair facility to verify this section is complete, accurate, and supportable.'
+}
 
 3. OEM DIAGNOSTIC PROCEDURE — Based on the vehicle and DTCs, list the actual OEM-recommended diagnostic steps a technician should follow for this specific complaint/code combination. Be specific to the vehicle make/model/year if known. Reference factory scan tool PIDs, voltage specs, pressure specs, or resistance values where applicable. If a specific OEM procedure is well established, name it (e.g. "Ford KOEO/KOER self-test", "GM Mode 6 misfire data", "Toyota SFI system check A").
 
@@ -738,14 +754,6 @@ Respond ONLY with valid JSON — no markdown, no extra text:
 function renderPills(containerId, questions, dtcList, oemSteps, tsbs, commonCauses){
   const c = document.getElementById(containerId);
   let html = '';
-
-  // DTC identifier pills
-  if (dtcList.length) {
-    html += `<div class="q-section-label">CODES PRESENT</div>`;
-    dtcList.forEach(code => {
-      html += `<div class="q-pill dtc-pill">${code} — confirm code status: current, pending, or historical</div>`;
-    });
-  }
 
   // Diagnostic questions
   if (questions && questions.length) {
