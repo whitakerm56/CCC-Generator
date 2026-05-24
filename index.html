@@ -156,6 +156,27 @@ main{max-width:1100px;margin:0 auto;padding:24px 20px 60px;}
 .typing-status{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px;white-space:nowrap;}
 .typing-status .spin{width:11px;height:11px;border-width:1.5px;}
 
+.q-pill.q-interactive{cursor:pointer;}
+.q-pill.q-interactive:hover{border-color:var(--teal);background:var(--teal-bg);}
+.q-pill-text{font-size:13px;color:var(--text);line-height:1.4;}
+.q-answer-row{
+  display:flex;gap:6px;margin-top:8px;align-items:center;
+}
+.q-answer-input{
+  flex:1;background:var(--bg);border:1px solid var(--border2);
+  border-radius:6px;color:var(--text);font-family:var(--font);
+  font-size:12px;padding:6px 10px;
+}
+.q-answer-input:focus{outline:none;border-color:var(--teal);}
+.q-answer-submit{
+  background:var(--teal);color:#fff;border:none;border-radius:6px;
+  font-size:14px;font-weight:700;padding:5px 10px;cursor:pointer;
+  flex-shrink:0;
+}
+.q-answered-tag{
+  font-size:11px;color:var(--green);margin-top:6px;font-weight:500;
+}
+
 .q-section-label{
   font-size:10px;font-weight:600;letter-spacing:1.5px;
   color:var(--text3);margin:14px 0 6px;padding:0 2px;
@@ -797,21 +818,32 @@ function renderPills(containerId, questions, dtcList, oemSteps, tsbs, commonCaus
   // Diagnostic questions
   if (questions && questions.length) {
     html += `<div class="q-section-label">QUESTIONS TO ASK</div>`;
-    questions.forEach(q => {
-      html += `<div class="q-pill">${q}</div>`;
+    questions.forEach((q, i) => {
+      const qid = `q-${containerId}-${i}`;
+      html += `
+        <div class="q-pill q-interactive" id="${qid}" onclick="expandQuestion('${qid}')">
+          <div class="q-pill-text">${q}</div>
+          <div class="q-answer-row" style="display:none;">
+            <input class="q-answer-input" type="text" placeholder="Type answer, press Enter..."
+              onclick="event.stopPropagation()"
+              onkeydown="if(event.key==='Enter'){event.preventDefault();submitAnswer('${qid}',${JSON.stringify(q)},'${containerId}');}" />
+            <button class="q-answer-submit" onclick="event.stopPropagation();submitAnswer('${qid}',${JSON.stringify(q)},'${containerId}')">→</button>
+          </div>
+          <div class="q-answered-tag" style="display:none;">✓ Added</div>
+        </div>`;
     });
   }
 
-  // Common failure causes
-  if (commonCauses && commonCauses.length) {
+  // Common failure causes — not shown for complaint
+  if (commonCauses && commonCauses.length && containerId !== 'qp-complaint') {
     html += `<div class="q-section-label">COMMON FAILURE CAUSES — BY LIKELIHOOD</div>`;
     commonCauses.forEach((cause, i) => {
       html += `<div class="q-pill cause-pill"><span class="cause-num">#${i+1}</span><span>${cause}</span></div>`;
     });
   }
 
-  // OEM diagnostic procedure
-  if (oemSteps && oemSteps.length) {
+  // OEM diagnostic procedure — not shown for complaint
+  if (oemSteps && oemSteps.length && containerId !== 'qp-complaint') {
     html += `<div class="q-section-label">OEM DIAGNOSTIC PROCEDURE</div>`;
     oemSteps.forEach((step, i) => {
       const text = step.replace(/^Step\s*\d+[:\-\s]*/i, '').trim();
@@ -819,8 +851,8 @@ function renderPills(containerId, questions, dtcList, oemSteps, tsbs, commonCaus
     });
   }
 
-  // Known TSBs
-  if (tsbs && tsbs.length) {
+  // Known TSBs — not shown for complaint
+  if (tsbs && tsbs.length && containerId !== 'qp-complaint') {
     html += `<div class="q-section-label">KNOWN TSBs</div>`;
     tsbs.forEach(t => {
       // Handle both object format and pipe-delimited string format
@@ -844,6 +876,56 @@ function renderPills(containerId, questions, dtcList, oemSteps, tsbs, commonCaus
   }
 
   c.innerHTML = html || '<div class="q-empty">No data generated.</div>';
+}
+
+// ── COMPLAINT QUESTION INTERACTION ────────────────────────
+function expandQuestion(qid) {
+  const pill   = document.getElementById(qid);
+  const row    = pill.querySelector('.q-answer-row');
+  const input  = pill.querySelector('.q-answer-input');
+  const isOpen = row.style.display !== 'none';
+
+  // Close all other open answer rows first
+  document.querySelectorAll('.q-answer-row').forEach(r => r.style.display = 'none');
+
+  if (!isOpen) {
+    row.style.display = 'flex';
+    input.focus();
+  }
+}
+
+function submitAnswer(qid, question, containerId) {
+  const pill    = document.getElementById(qid);
+  const input   = pill.querySelector('.q-answer-input');
+  const row     = pill.querySelector('.q-answer-row');
+  const tag     = pill.querySelector('.q-answered-tag');
+  const answer  = input.value.trim();
+  if (!answer) return;
+
+  // Map column to textarea and section
+  const map = {
+    'qp-complaint':  { textareaId: 't-complaint',  section: 'complaint'  },
+    'qp-cause':      { textareaId: 't-cause',       section: 'cause'      },
+    'qp-correction': { textareaId: 't-correction',  section: 'correction' },
+  };
+  const target = map[containerId];
+  if (!target) return;
+
+  const textarea = document.getElementById(target.textareaId);
+  const existing = textarea.value.trim();
+  const entry    = `${question} ${answer}.`;
+  textarea.value = existing ? existing + ' ' + entry : entry;
+
+  // Mark pill as answered
+  row.style.display  = 'none';
+  tag.style.display  = 'block';
+  pill.style.opacity = '0.6';
+  pill.onclick       = null;
+  input.value        = '';
+
+  // Re-analyze the appropriate section
+  clearTimeout(timers[target.section]);
+  timers[target.section] = setTimeout(() => generateSection(target.section), 1800);
 }
 
 // ── RECALLS ───────────────────────────────────────────────
