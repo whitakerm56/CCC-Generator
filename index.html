@@ -714,7 +714,7 @@ async function generateSection(section) {
   const sectionFocus = {
     complaint:`The COMPLAINT section is the customer's voice — what they told the Service Advisor when they brought the vehicle in. The questions generated here are ONLY for a SERVICE ADVISOR to ask the CUSTOMER to extract a complete, accurate symptom description. Focus on: exactly what the customer is experiencing, when and how often it happens, under what conditions (cold start, highway speed, after rain, under load, etc.), how long it has been occurring, whether any warning lights are on, whether any recent repairs or events preceded the issue, and any sounds, smells, or sensations the customer noticed. The goal is a symptom picture detailed enough that a technician can attempt to duplicate the condition. IMPORTANT: Do NOT generate any questions about DTCs, diagnostic codes, scan tools, or technical diagnosis — the customer does not know about those things and that is not their domain. Do NOT ask the customer what codes are stored. Keep all questions in plain, everyday language a non-technical vehicle owner would understand.`,
     cause:`Focus on: what specific diagnostic procedure was followed step by step, exact measurements taken (voltage, resistance, pressure, flow rate) vs. factory specification, what scan data and live PIDs were observed, whether the technician confirmed the root cause vs. treating a symptom, whether the failure is primary or secondary to another condition, and whether applicable TSBs were checked and followed.`,
-    correction:`Focus on: whether the repair directly addresses the confirmed root cause, OEM vs. aftermarket parts used and why, part numbers and quantities, specific labor operations performed, whether the vehicle was road tested and DTCs retested after repair, and whether the repair meets warranty coverage criteria including authorized parts and procedures.`
+    correction:`Focus on: whether the repair directly addresses the confirmed root cause, whether the correct repair procedure was followed, whether the vehicle was road tested after repair, whether the fault was retested and confirmed resolved, and whether the repair meets warranty coverage criteria.`
   }[section];
 
   const prompt = `You are a master automotive diagnostic consultant with encyclopedic knowledge of OEM repair procedures, Technical Service Bulletins, known failure patterns, and factory diagnostic routines for all major vehicle makes and models.
@@ -745,22 +745,13 @@ YOUR TASKS FOR THIS SECTION:
   : 'Generate concise, direct questions for the technician or repair facility. Avoid industry abbreviations — spell things out in plain terms. Keep each question as short as possible while remaining specific. One focused question per item — no compound questions.'
 }
 
-3. OEM DIAGNOSTIC PROCEDURE — The actual factory-recommended diagnostic steps for this complaint/code/vehicle. Reference specific PIDs, voltage specs, pressure specs, or named OEM procedures where applicable.
-
-4. KNOWN TSBs — Any TSBs you are aware of for this vehicle and codes. Include TSB number if known. Be honest if knowledge is limited.
-
-5. COMMON FAILURE PATTERNS — Most statistically common root causes ranked by likelihood.
+3. Nothing else. Return ONLY quality, feedback, and questions.
 
 Respond ONLY with valid JSON — no markdown, no extra text:
 {
   "quality": "Weak|Needs Detail|Good|Strong",
   "feedback": "One sentence of actionable feedback on this section.",
-  "questions": ["Q1?","Q2?","Q3?","Q4?","Q5?","Q6?"],
-  "oem_steps": ["Step 1","Step 2","Step 3","Step 4","Step 5"],
-  "tsbs": [
-    {"id": "TSB number or N/A", "title": "Brief title", "detail": "What it addresses and affected vehicles"}
-  ],
-  "common_causes": ["Most likely cause first", "Second most likely", "Third most likely"]
+  "questions": ["Q1?","Q2?","Q3?","Q4?","Q5?","Q6?"]
 }`;
 
   try {
@@ -784,11 +775,11 @@ Respond ONLY with valid JSON — no markdown, no extra text:
     setBadge(section, parsed.quality, parsed.feedback);
     renderPills(
       `qp-${section}`,
-      parsed.questions     || [],
+      parsed.questions || [],
       [],
-      parsed.oem_steps     || [],
-      parsed.tsbs          || [],
-      parsed.common_causes || []
+      [],
+      [],
+      []
     );
     if (btn) { btn.disabled = false; btn.textContent = 'Analyze'; }
 
@@ -821,55 +812,14 @@ function renderPills(containerId, questions, dtcList, oemSteps, tsbs, commonCaus
     });
   }
 
-  // Common failure causes — not shown for complaint
-  if (commonCauses && commonCauses.length && containerId !== 'qp-complaint') {
-    html += `<div class="q-section-label">COMMON FAILURE CAUSES — BY LIKELIHOOD</div>`;
-    commonCauses.forEach((cause, i) => {
-      html += `<div class="q-pill cause-pill"><span class="cause-num">#${i+1}</span><span>${cause}</span></div>`;
-    });
-  }
+  c.innerHTML = html || '<div class="q-empty">No questions generated.</div>';
 
-  // OEM diagnostic procedure — not shown for complaint
-  if (oemSteps && oemSteps.length && containerId !== 'qp-complaint') {
-    html += `<div class="q-section-label">OEM DIAGNOSTIC PROCEDURE</div>`;
-    oemSteps.forEach((step, i) => {
-      const text = step.replace(/^Step\s*\d+[:\-\s]*/i, '').trim();
-      html += `<div class="q-pill oem-pill"><span class="oem-num">${i+1}</span><span>${text}</span></div>`;
-    });
-  }
-
-  // Known TSBs — not shown for complaint
-  if (tsbs && tsbs.length && containerId !== 'qp-complaint') {
-    html += `<div class="q-section-label">KNOWN TSBs</div>`;
-    tsbs.forEach(t => {
-      // Handle both object format and pipe-delimited string format
-      let id, title, detail;
-      if (typeof t === 'string') {
-        const idM    = t.match(/ID:\s*([^|]+)/i);
-        const titleM = t.match(/TITLE:\s*([^|]+)/i);
-        const detailM= t.match(/DETAIL:\s*(.+)/i);
-        id     = idM    ? idM[1].trim()    : 'Known Issue';
-        title  = titleM ? titleM[1].trim() : '';
-        detail = detailM? detailM[1].trim(): t;
-      } else {
-        id = t.id; title = t.title; detail = t.detail;
-      }
-      html += `<div class="q-pill tsb-pill">
-        <div class="tsb-pill-id">${id && id !== 'N/A' ? id : 'Known Issue'}</div>
-        <div class="tsb-pill-title">${title || ''}</div>
-        <div class="tsb-pill-detail">${detail || ''}</div>
-      </div>`;
-    });
-  }
-
-  c.innerHTML = html || '<div class="q-empty">No data generated.</div>';
-
-  // Wire up answer inputs via delegation (avoids inline JS quote issues)
+  // Wire up answer inputs via delegation
   c.querySelectorAll('.q-interactive').forEach(pill => {
     const input  = pill.querySelector('.q-answer-input');
     const btn    = pill.querySelector('.q-answer-submit');
     const submit = () => {
-      const question   = pill.dataset.question;
+      const question    = pill.dataset.question;
       const containerId = pill.dataset.container;
       submitAnswer(pill.id, question, containerId);
     };
