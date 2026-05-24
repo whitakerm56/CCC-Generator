@@ -866,9 +866,6 @@ Statement:`
     tag.style.color    = 'var(--green)';
     pill.style.opacity = '0.6';
 
-    // Re-analyze the section
-    setTimeout(() => generateSection(target.section), 1800);
-
   } catch(e) {
     tag.textContent = '⚠ Error — try again';
     input.disabled  = false;
