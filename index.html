@@ -820,14 +820,13 @@ function renderPills(containerId, questions, dtcList, oemSteps, tsbs, commonCaus
     html += `<div class="q-section-label">QUESTIONS TO ASK</div>`;
     questions.forEach((q, i) => {
       const qid = `q-${containerId}-${i}`;
+      const safeQ = q.replace(/"/g, '&quot;');
       html += `
-        <div class="q-pill q-interactive" id="${qid}" onclick="expandQuestion('${qid}')">
+        <div class="q-pill q-interactive" id="${qid}" data-question="${safeQ}" data-container="${containerId}">
           <div class="q-pill-text">${q}</div>
-          <div class="q-answer-row" style="display:none;">
-            <input class="q-answer-input" type="text" placeholder="Type answer, press Enter..."
-              onclick="event.stopPropagation()"
-              onkeydown="if(event.key==='Enter'){event.preventDefault();submitAnswer('${qid}',${JSON.stringify(q)},'${containerId}');}" />
-            <button class="q-answer-submit" onclick="event.stopPropagation();submitAnswer('${qid}',${JSON.stringify(q)},'${containerId}')">→</button>
+          <div class="q-answer-row">
+            <input class="q-answer-input" type="text" placeholder="Type answer and press Enter..." />
+            <button class="q-answer-submit">→</button>
           </div>
           <div class="q-answered-tag" style="display:none;">✓ Added</div>
         </div>`;
@@ -876,23 +875,22 @@ function renderPills(containerId, questions, dtcList, oemSteps, tsbs, commonCaus
   }
 
   c.innerHTML = html || '<div class="q-empty">No data generated.</div>';
+
+  // Wire up answer inputs via delegation (avoids inline JS quote issues)
+  c.querySelectorAll('.q-interactive').forEach(pill => {
+    const input  = pill.querySelector('.q-answer-input');
+    const btn    = pill.querySelector('.q-answer-submit');
+    const submit = () => {
+      const question   = pill.dataset.question;
+      const containerId = pill.dataset.container;
+      submitAnswer(pill.id, question, containerId);
+    };
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+    btn.addEventListener('click', submit);
+  });
 }
 
 // ── COMPLAINT QUESTION INTERACTION ────────────────────────
-function expandQuestion(qid) {
-  const pill   = document.getElementById(qid);
-  const row    = pill.querySelector('.q-answer-row');
-  const input  = pill.querySelector('.q-answer-input');
-  const isOpen = row.style.display !== 'none';
-
-  // Close all other open answer rows first
-  document.querySelectorAll('.q-answer-row').forEach(r => r.style.display = 'none');
-
-  if (!isOpen) {
-    row.style.display = 'flex';
-    input.focus();
-  }
-}
 
 function submitAnswer(qid, question, containerId) {
   const pill    = document.getElementById(qid);
