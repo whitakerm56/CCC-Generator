@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>CCC Generator — Automotive Diagnostic Tool</title>
+<title>CCC Co-Pilot — Automotive Diagnostic Tool</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
@@ -52,6 +52,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .logo-name{font-size:15px;font-weight:600;color:var(--text);}
 .logo-sub{font-size:11px;color:var(--text2);}
 .topbar-right{display:flex;align-items:center;gap:8px;}
+.reset-btn{
+  background:var(--red);border:none;
+  border-radius:7px;color:#000;font-family:var(--font);
+  font-size:12px;font-weight:600;padding:6px 14px;
+  cursor:pointer;transition:opacity .15s;
+}
+.reset-btn:hover{opacity:.85;}
+
 /* ── MAIN ── */
 main{max-width:1100px;margin:0 auto;padding:24px 20px 60px;}
 
@@ -335,11 +343,13 @@ footer a{color:var(--text3);}
   <div class="logo-row">
     <div class="logo-badge">CCC</div>
     <div>
-      <div class="logo-name">Automotive CCC Generator</div>
+      <div class="logo-name">CCC Co-Pilot</div>
       <div class="logo-sub">Complaint · Cause · Correction</div>
     </div>
   </div>
-  <div class="topbar-right"></div>
+  <div class="topbar-right">
+    <button class="reset-btn" onclick="resetForm()">↺ Reset Form</button>
+  </div>
 </div>
 
 <main>
@@ -504,7 +514,7 @@ footer a{color:var(--text3);}
 </main>
 
 <footer>
-  CCC Generator · Recall &amp; TSB data from <a href="https://www.nhtsa.gov" target="_blank">NHTSA.gov</a> · AI by <a href="https://anthropic.com" target="_blank">Anthropic Claude</a>
+  CCC Co-Pilot · Recall &amp; TSB data from <a href="https://www.nhtsa.gov" target="_blank">NHTSA.gov</a> · AI by <a href="https://anthropic.com" target="_blank">Anthropic Claude</a>
   · This tool does not replace professional diagnosis.
 </footer>
 
@@ -592,6 +602,44 @@ function setBadge(section,rating,feedback){
   b.textContent=rating;
   b.className='quality-badge '+(badgeClass[rating]||'badge-detail');
   document.getElementById(`fb-${section}`).textContent=feedback||'';
+}
+
+// ── RESET FORM ─────────────────────────────────────────────
+function resetForm() {
+  if (!confirm('Clear all fields and start over?')) return;
+
+  // Clear textareas
+  ['t-complaint','t-cause','t-correction'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+
+  // Reset badges
+  ['complaint','cause','correction'].forEach(s => {
+    const b = document.getElementById(`badge-${s}`);
+    b.textContent = '';
+    b.className = 'quality-badge badge-pending';
+    document.getElementById(`fb-${s}`).textContent = '';
+    document.getElementById(`btn-${s}`).disabled = false;
+    document.getElementById(`btn-${s}`).textContent = 'Analyze';
+    document.getElementById(`qp-${s}`).innerHTML = '';
+  });
+
+  // Clear vehicle info
+  veh = {year:'',make:'',model:'',trim:'',engine:'',trans:''};
+  renderVeh();
+  document.getElementById('vin-input').value = '';
+  ['m-year','m-make','m-model','m-trim','m-engine'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('vin-alert').style.display = 'none';
+
+  // Clear recalls and TSBs
+  document.getElementById('recall-body').innerHTML =
+    '<div class="lookup-empty">Fetch recalls to see open campaigns for this vehicle.</div>';
+  document.getElementById('tsb-body').innerHTML =
+    '<div class="lookup-empty">Fetch TSBs to see manufacturer bulletins for this vehicle.</div>';
+  document.getElementById('recall-count').style.display = 'none';
+  document.getElementById('tsb-count').style.display = 'none';
 }
 
 // ── COPY TO CLIPBOARD ──────────────────────────────────────
