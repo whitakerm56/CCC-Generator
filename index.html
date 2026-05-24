@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CCC Generator — Automotive Diagnostic Tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:       #18181b;
+  --bg2:      #202024;
+  --card:     #232326;
+  --card2:    #2c2c30;
+  --border:   rgba(255,255,255,0.07);
+  --border2:  rgba(255,255,255,0.13);
+  --teal:     #818cf8;
+  --teal-bg:  rgba(129,140,248,0.12);
+  --teal-dim: rgba(129,140,248,0.28);
+  --amber:    #fbbf24;
+  --amber-bg: rgba(251,191,36,0.13);
+  --red:      #f87171;
+  --red-bg:   rgba(248,113,113,0.13);
+  --green:    #4ade80;
+  --green-bg: rgba(74,222,128,0.11);
+  --text:     #f4f4f5;
+  --text2:    #a1a1aa;
+  --text3:    #52525b;
+  --font:     'Inter', sans-serif;
+  --r:        10px;
+  --r2:       14px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5;}
+
+/* ── TOPBAR ── */
+.topbar{
+  background:var(--bg2);
+  border-bottom:1px solid var(--border);
+  padding:12px 24px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+}
+.logo-row{display:flex;align-items:center;gap:10px;}
+.logo-badge{
+  background:var(--teal);color:#fff;
+  font-size:12px;font-weight:700;
+  padding:4px 9px;border-radius:6px;letter-spacing:1.5px;
+}
+.logo-name{font-size:15px;font-weight:600;color:var(--text);}
+.logo-sub{font-size:11px;color:var(--text2);}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.api-btn{
+  display:flex;align-items:center;gap:6px;
+  background:transparent;border:1px solid var(--border2);
+  border-radius:7px;color:var(--text2);font-family:var(--font);
+  font-size:12px;padding:6px 12px;cursor:pointer;transition:all .15s;
+}
+.api-btn:hover{border-color:var(--teal);color:var(--teal);}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--red);flex-shrink:0;}
+.dot.on{background:var(--green);}
+
+/* ── API PANEL ── */
+.api-panel{
+  display:none;background:var(--card2);
+  border-bottom:1px solid var(--border);
+  padding:10px 24px;
+  align-items:center;gap:10px;flex-wrap:wrap;
+}
+.api-panel.open{display:flex;}
+.api-panel label{font-size:12px;color:var(--text2);white-space:nowrap;}
+.api-panel input{
+  flex:1;max-width:460px;
+  background:var(--bg2);border:1px solid var(--border2);
+  border-radius:7px;color:var(--text);font-family:monospace;
+  font-size:12px;padding:7px 12px;
+}
+.api-panel input:focus{outline:none;border-color:var(--teal);}
+.save-btn{
+  background:var(--teal);color:#fff;border:none;border-radius:7px;
+  font-family:var(--font);font-size:12px;font-weight:600;
+  padding:7px 14px;cursor:pointer;
+}
+.api-note{font-size:11px;color:var(--text3);}
+
+/* ── MAIN ── */
+main{max-width:1100px;margin:0 auto;padding:24px 20px 60px;}
+
+/* ── ROW 1: ROLE / VIN / VEHICLE ── */
+.top-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px;}
+.panel{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r2);padding:16px;
+}
+.panel-label{
+  font-size:10px;font-weight:600;letter-spacing:1.8px;
+  color:var(--text2);margin-bottom:12px;
+}
+
+/* Role Tabs */
+.role-tabs{display:flex;border-radius:8px;overflow:hidden;border:1px solid var(--border2);}
+.role-tab{
+  flex:1;padding:9px 6px;text-align:center;
+  font-size:11px;font-weight:600;letter-spacing:.5px;
+  background:transparent;border:none;color:var(--text2);
+  cursor:pointer;transition:all .15s;
+}
+.role-tab.active{background:var(--teal);color:#fff;}
+.role-tab:not(.active):hover{background:var(--card2);color:var(--text);}
+
+/* VIN Input */
+.vin-wrap{display:flex;gap:8px;margin-bottom:10px;}
+.vin-input{
+  flex:1;background:var(--bg2);border:1px solid var(--border2);
+  border-radius:8px;color:var(--text);font-family:monospace;
+  font-size:14px;letter-spacing:2px;padding:9px 12px;
+  transition:border-color .15s;
+}
+.vin-input:focus{outline:none;border-color:var(--teal);}
+.vin-input::placeholder{letter-spacing:.5px;font-size:12px;color:var(--text3);}
+.decode-btn{
+  background:var(--teal);color:#fff;border:none;border-radius:8px;
+  font-family:var(--font);font-size:12px;font-weight:600;
+  padding:9px 14px;cursor:pointer;white-space:nowrap;transition:opacity .15s;
+}
+.decode-btn:hover{opacity:.85;}
+.decode-btn:disabled{opacity:.4;cursor:not-allowed;}
+.vin-hint{font-size:11px;color:var(--teal);cursor:pointer;}
+
+/* Manual inputs */
+.manual-row{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;}
+.manual-row input{
+  flex:1;min-width:60px;background:var(--bg2);border:1px solid var(--border);
+  border-radius:7px;color:var(--text);font-family:var(--font);font-size:12px;
+  padding:6px 8px;
+}
+.manual-row input:focus{outline:none;border-color:var(--teal);}
+.apply-btn{
+  background:var(--card2);color:var(--text2);border:1px solid var(--border2);
+  border-radius:7px;font-family:var(--font);font-size:11px;
+  font-weight:600;padding:6px 10px;cursor:pointer;
+}
+.apply-btn:hover{border-color:var(--teal);color:var(--teal);}
+
+/* Vehicle display */
+.veh-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.veh-cell{background:var(--bg2);border-radius:7px;padding:7px 10px;}
+.veh-cell-label{font-size:9px;letter-spacing:1.2px;color:var(--text3);margin-bottom:2px;}
+.veh-cell-val{font-size:13px;font-weight:500;color:var(--text);min-height:17px;}
+.veh-cell-val.empty{color:var(--text3);font-style:italic;font-size:12px;}
+
+/* ── CCC COLUMNS ── */
+.ccc-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:16px;}
+.ccc-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r2);padding:16px;display:flex;flex-direction:column;gap:10px;
+}
+.ccc-card-head{display:flex;align-items:center;justify-content:space-between;}
+.ccc-title-row{display:flex;align-items:center;gap:8px;}
+.ccc-icon{
+  width:32px;height:32px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:15px;
+  background:var(--teal-bg);border:1px solid var(--teal-dim);flex-shrink:0;
+}
+.ccc-title{font-size:14px;font-weight:700;letter-spacing:.5px;color:var(--text);}
+.quality-badge{
+  font-size:11px;font-weight:600;border-radius:20px;
+  padding:3px 10px;border:1px solid;white-space:nowrap;
+}
+.badge-weak{background:var(--red-bg);border-color:rgba(248,113,113,.3);color:var(--red);}
+.badge-detail{background:var(--amber-bg);border-color:rgba(245,158,11,.3);color:var(--amber);}
+.badge-good{background:var(--green-bg);border-color:rgba(74,222,128,.3);color:var(--green);}
+.badge-strong{background:var(--teal-bg);border-color:var(--teal-dim);color:var(--teal);}
+
+.ccc-textarea{
+  width:100%;background:var(--bg2);border:1px solid var(--border);
+  border-radius:8px;color:var(--text);font-family:var(--font);
+  font-size:13px;padding:12px;resize:vertical;min-height:110px;
+  line-height:1.6;transition:border-color .15s;
+}
+.ccc-textarea:focus{outline:none;border-color:var(--teal);}
+.ccc-textarea::placeholder{color:var(--text3);font-size:12px;}
+.ccc-feedback{font-size:12px;color:var(--text2);min-height:16px;font-style:italic;}
+
+.typing-status{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px;white-space:nowrap;}
+.typing-status .spin{width:11px;height:11px;border-width:1.5px;}
+
+/* ── QUESTIONS COLUMNS ── */
+.q-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:24px;}
+.q-col{}
+.q-col-head{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:12px;
+}
+.q-col-icon{
+  width:30px;height:30px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:14px;
+  background:var(--teal-bg);border:1px solid var(--teal-dim);flex-shrink:0;
+}
+.q-col-title{font-size:14px;font-weight:600;color:var(--text);}
+
+.q-pills{display:flex;flex-direction:column;gap:8px;}
+.q-pill{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:24px;padding:10px 16px;
+  font-size:13px;color:var(--text);line-height:1.4;
+  transition:border-color .12s;
+}
+.q-pill:hover{border-color:var(--border2);}
+.q-pill.dtc-pill{
+  background:var(--teal-bg);border-color:var(--teal-dim);
+  color:var(--teal);font-weight:600;font-family:monospace;
+  font-size:12px;
+}
+.q-empty{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r2);padding:24px;
+  text-align:center;color:var(--text3);font-size:13px;
+}
+.q-loading{
+  display:flex;align-items:center;gap:10px;
+  padding:16px;color:var(--text3);font-size:13px;
+}
+.spin{
+  width:16px;height:16px;border:2px solid var(--border2);
+  border-top-color:var(--teal);border-radius:50%;
+  animation:spin .7s linear infinite;flex-shrink:0;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ── LOOKUP SECTION ── */
+.lookup-head{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:14px;
+}
+.lookup-title{font-size:13px;font-weight:600;color:var(--text2);letter-spacing:.3px;}
+.lookup-btns{display:flex;gap:8px;}
+.lookup-btn{
+  background:transparent;border:1px solid var(--border2);border-radius:8px;
+  color:var(--text2);font-family:var(--font);font-size:12px;font-weight:500;
+  padding:7px 14px;cursor:pointer;transition:all .15s;
+}
+.lookup-btn:hover{border-color:var(--teal);color:var(--teal);}
+.lookup-btn:disabled{opacity:.4;cursor:not-allowed;}
+.lookup-btn.primary{background:var(--teal);color:#fff;border-color:var(--teal);}
+.lookup-btn.primary:hover{opacity:.87;}
+
+.lookup-panels{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.lookup-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;
+}
+.lookup-card-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;background:var(--card2);border-bottom:1px solid var(--border);
+}
+.lookup-card-title{font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:7px;}
+.count-badge{
+  font-size:10px;font-weight:600;border-radius:20px;padding:2px 8px;
+  background:var(--red-bg);border:1px solid rgba(248,113,113,.3);color:var(--red);
+}
+.count-badge.blue{background:var(--teal-bg);border-color:var(--teal-dim);color:var(--teal);}
+.count-badge.green{background:var(--green-bg);border-color:rgba(74,222,128,.3);color:var(--green);}
+
+.lookup-body{}
+.lookup-empty{padding:28px 16px;text-align:center;color:var(--text3);font-size:13px;line-height:1.6;}
+.lookup-empty a{color:var(--teal);}
+.lookup-loading{display:flex;align-items:center;gap:10px;padding:20px 16px;color:var(--text3);font-size:13px;}
+
+.recall-item{padding:12px 16px;border-bottom:1px solid var(--border);}
+.recall-item:last-child{border-bottom:none;}
+.recall-component{font-size:11px;font-weight:600;color:var(--red);font-family:monospace;letter-spacing:.5px;margin-bottom:4px;}
+.recall-summary{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:6px;}
+.recall-pills{display:flex;gap:6px;flex-wrap:wrap;}
+.recall-pill{font-size:10px;font-family:monospace;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:2px 8px;color:var(--text3);}
+
+.tsb-item{padding:12px 16px;border-bottom:1px solid var(--border);}
+.tsb-item:last-child{border-bottom:none;}
+.tsb-id{font-family:monospace;font-size:12px;font-weight:600;color:var(--teal);margin-bottom:3px;}
+.tsb-subject{font-size:12px;color:var(--text);line-height:1.5;margin-bottom:3px;}
+.tsb-meta{font-size:11px;color:var(--text3);font-family:monospace;}
+
+/* ── ALERT ── */
+.alert-bar{
+  padding:8px 16px;border-radius:8px;font-size:13px;
+  margin-bottom:12px;display:flex;align-items:center;gap:8px;
+}
+.alert-warn{background:var(--amber-bg);border:1px solid rgba(245,158,11,.3);color:var(--amber);}
+.alert-err{background:var(--red-bg);border:1px solid rgba(248,113,113,.3);color:var(--red);}
+.alert-ok{background:var(--green-bg);border:1px solid rgba(74,222,128,.3);color:var(--green);}
+
+/* ── FOOTER ── */
+footer{
+  text-align:center;padding:20px;font-size:11px;color:var(--text3);
+  border-top:1px solid var(--border);
+}
+footer a{color:var(--text3);}
+
+/* ── RESPONSIVE ── */
+@media(max-width:700px){
+  .top-row,.ccc-cols,.q-cols,.lookup-panels{grid-template-columns:1fr;}
+  .role-tab{font-size:10px;}
+  main{padding:16px 12px 48px;}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo-row">
+    <div class="logo-badge">CCC</div>
+    <div>
+      <div class="logo-name">Automotive CCC Generator</div>
+      <div class="logo-sub">Complaint · Cause · Correction</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <button class="api-btn" onclick="toggleApiPanel()" id="api-toggle">
+      <div class="dot" id="key-dot"></div>
+      <span id="key-label">Set API Key</span>
+    </button>
+  </div>
+</div>
+
+<!-- API PANEL -->
+<div class="api-panel" id="api-panel">
+  <label>Anthropic API Key</label>
+  <input type="password" id="api-key-input" placeholder="sk-ant-..." />
+  <button class="save-btn" onclick="saveApiKey()">Save</button>
+  <span class="api-note">Stored in your browser only — never transmitted except to Anthropic's API.</span>
+</div>
+
+<main>
+  <!-- ALERTS -->
+  <div id="alert-area"></div>
+
+  <!-- ROW 1: ROLE / VIN / VEHICLE -->
+  <div class="top-row">
+
+    <!-- ROLE -->
+    <div class="panel">
+      <div class="panel-label">USER</div>
+      <div class="role-tabs">
+        <button class="role-tab active" onclick="setRole('consumer')" id="rt-consumer">CONSUMER</button>
+        <button class="role-tab" onclick="setRole('facility')" id="rt-facility">REPAIR FACILITY</button>
+        <button class="role-tab" onclick="setRole('adjuster')" id="rt-adjuster">CLAIM ADJUSTER</button>
+      </div>
+    </div>
+
+    <!-- VIN -->
+    <div class="panel">
+      <div class="panel-label">VIN OF VEHICLE</div>
+      <div class="vin-wrap">
+        <input class="vin-input" type="text" id="vin-input" maxlength="17"
+          placeholder="17-DIGIT VIN"
+          oninput="this.value=this.value.toUpperCase()"
+          onkeydown="if(event.key==='Enter') decodeVIN()" />
+        <button class="decode-btn" id="decode-btn" onclick="decodeVIN()">Decode</button>
+      </div>
+      <div class="vin-hint" onclick="toggleManual()">⌨ Enter manually instead</div>
+      <div id="manual-row" style="display:none;">
+        <div class="manual-row">
+          <input type="number" id="m-year" placeholder="Year" min="1980" max="2026" style="max-width:70px;"/>
+          <input type="text" id="m-make" placeholder="Make"/>
+          <input type="text" id="m-model" placeholder="Model"/>
+          <button class="apply-btn" onclick="applyManual()">Apply</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VEHICLE INFO -->
+    <div class="panel">
+      <div class="panel-label">YEAR MAKE MODEL TRIM</div>
+      <div class="veh-grid">
+        <div class="veh-cell"><div class="veh-cell-label">YEAR</div><div class="veh-cell-val empty" id="vf-year">—</div></div>
+        <div class="veh-cell"><div class="veh-cell-label">MAKE</div><div class="veh-cell-val empty" id="vf-make">—</div></div>
+        <div class="veh-cell"><div class="veh-cell-label">MODEL</div><div class="veh-cell-val empty" id="vf-model">—</div></div>
+        <div class="veh-cell"><div class="veh-cell-label">TRIM</div><div class="veh-cell-val empty" id="vf-trim">—</div></div>
+        <div class="veh-cell"><div class="veh-cell-label">ENGINE</div><div class="veh-cell-val empty" id="vf-engine">—</div></div>
+        <div class="veh-cell"><div class="veh-cell-label">TRANS</div><div class="veh-cell-val empty" id="vf-trans">—</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CCC COLUMNS -->
+  <div class="ccc-cols">
+
+    <div class="ccc-card" id="card-complaint">
+      <div class="ccc-card-head">
+        <div class="ccc-title-row">
+          <div class="ccc-icon">❓</div>
+          <div class="ccc-title">COMPLAINT</div>
+        </div>
+        <div class="quality-badge badge-weak" id="badge-complaint" style="display:none;"></div>
+      </div>
+      <textarea class="ccc-textarea" id="t-complaint"
+        placeholder="Describe the symptom or concern as the customer reported it. What did the customer say? When does it happen? How often?"></textarea>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="ccc-feedback" id="fb-complaint"></div>
+        <div class="typing-status" id="ts-complaint"></div>
+      </div>
+    </div>
+
+    <div class="ccc-card" id="card-cause">
+      <div class="ccc-card-head">
+        <div class="ccc-title-row">
+          <div class="ccc-icon">🔬</div>
+          <div class="ccc-title">CAUSE</div>
+        </div>
+        <div class="quality-badge badge-weak" id="badge-cause" style="display:none;"></div>
+      </div>
+      <textarea class="ccc-textarea" id="t-cause"
+        placeholder="What did the technician find? What was measured? What specific component or system failed, and what diagnostic tests confirmed it?"></textarea>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="ccc-feedback" id="fb-cause"></div>
+        <div class="typing-status" id="ts-cause"></div>
+      </div>
+    </div>
+
+    <div class="ccc-card" id="card-correction">
+      <div class="ccc-card-head">
+        <div class="ccc-title-row">
+          <div class="ccc-icon">🔧</div>
+          <div class="ccc-title">CORRECTION</div>
+        </div>
+        <div class="quality-badge badge-weak" id="badge-correction" style="display:none;"></div>
+      </div>
+      <textarea class="ccc-textarea" id="t-correction"
+        placeholder="What was done to fix the vehicle? What parts were replaced? Was the repair verified? Did the vehicle pass a road test or retest?"></textarea>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="ccc-feedback" id="fb-correction"></div>
+        <div class="typing-status" id="ts-correction"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- QUESTION COLUMNS -->
+  <div class="q-cols">
+
+    <div class="q-col">
+      <div class="q-col-head">
+        <div class="q-col-icon">❓</div>
+        <div class="q-col-title">Complaint Questions</div>
+      </div>
+      <div class="q-pills" id="qp-complaint">
+        <div class="q-empty">Questions will appear here after generating.</div>
+      </div>
+    </div>
+
+    <div class="q-col">
+      <div class="q-col-head">
+        <div class="q-col-icon">🔬</div>
+        <div class="q-col-title">Cause Questions</div>
+      </div>
+      <div class="q-pills" id="qp-cause">
+        <div class="q-empty">Questions will appear here after generating.</div>
+      </div>
+    </div>
+
+    <div class="q-col">
+      <div class="q-col-head">
+        <div class="q-col-icon">🔧</div>
+        <div class="q-col-title">Correction Questions</div>
+      </div>
+      <div class="q-pills" id="qp-correction">
+        <div class="q-empty">Questions will appear here after generating.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- LOOKUP -->
+  <div style="border-top:1px solid var(--border);padding-top:20px;margin-top:8px;">
+    <div class="lookup-head">
+      <div class="lookup-title">NHTSA OPEN RECALLS &amp; TECHNICAL SERVICE BULLETINS</div>
+      <div class="lookup-btns">
+        <button class="lookup-btn primary" id="recall-btn" onclick="fetchRecalls()">Fetch Recalls</button>
+        <button class="lookup-btn" id="tsb-btn" onclick="fetchTSBs()">Fetch TSBs</button>
+      </div>
+    </div>
+    <div class="lookup-panels">
+
+      <div class="lookup-card">
+        <div class="lookup-card-head">
+          <div class="lookup-card-title">🚨 Open Recalls <span class="count-badge" id="recall-count" style="display:none;"></span></div>
+          <span style="font-size:11px;color:var(--text3);">via NHTSA</span>
+        </div>
+        <div class="lookup-body" id="recall-body">
+          <div class="lookup-empty">Decode a VIN or enter vehicle info, then click Fetch Recalls.</div>
+        </div>
+      </div>
+
+      <div class="lookup-card">
+        <div class="lookup-card-head">
+          <div class="lookup-card-title">📄 Technical Service Bulletins <span class="count-badge blue" id="tsb-count" style="display:none;"></span></div>
+          <span style="font-size:11px;color:var(--text3);">via NHTSA</span>
+        </div>
+        <div class="lookup-body" id="tsb-body">
+          <div class="lookup-empty">Decode a VIN or enter vehicle info, then click Fetch TSBs.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  CCC Generator · Recall &amp; TSB data from <a href="https://www.nhtsa.gov" target="_blank">NHTSA.gov</a> · AI by <a href="https://anthropic.com" target="_blank">Anthropic Claude</a>
+  · This tool does not replace professional diagnosis.
+</footer>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────
+let role = 'consumer';
+let veh = {year:'',make:'',model:'',trim:'',engine:'',trans:''};
+
+// ── API KEY ────────────────────────────────────────────────
+function toggleApiPanel(){document.getElementById('api-panel').classList.toggle('open');}
+function saveApiKey(){
+  const v=document.getElementById('api-key-input').value.trim();
+  if(!v)return;
+  localStorage.setItem('ccc_key',v);
+  updateKeyUI();
+  document.getElementById('api-panel').classList.remove('open');
+  alert_show('API key saved.','ok',2500);
+}
+function getKey(){return localStorage.getItem('ccc_key')||'';}
+function updateKeyUI(){
+  const k=getKey();
+  document.getElementById('key-dot').className=k?'dot on':'dot';
+  document.getElementById('key-label').textContent=k?'API Key Set':'Set API Key';
+  if(k) document.getElementById('api-key-input').value=k;
+}
+updateKeyUI();
+
+// ── ALERTS ────────────────────────────────────────────────
+function alert_show(msg,type='warn',dur=4000){
+  const a=document.getElementById('alert-area');
+  const d=document.createElement('div');
+  d.className=`alert-bar alert-${type}`;d.textContent=msg;
+  a.appendChild(d);
+  if(dur)setTimeout(()=>d.remove(),dur);
+}
+
+// ── ROLE ──────────────────────────────────────────────────
+const roleLabel={consumer:'the Repair Facility',facility:'your Technician',adjuster:'the Repair Facility'};
+const roleContext={
+  consumer:`You are helping a CONSUMER (vehicle owner) who received OBD-II codes from a parts store scan and has NOT had a professional diagnosis performed. They are about to bring their vehicle to a repair shop.`,
+  facility:`You are helping a SERVICE ADVISOR at a REPAIR FACILITY who needs to verify a technician's diagnosis before presenting the repair recommendation to the customer. The advisor needs to ensure the diagnosis is complete, accurate, and defensible.`,
+  adjuster:`You are helping a WARRANTY CLAIM ADJUSTER reviewing a claim submitted by a repair facility. You need to establish the true point of failure, verify proper diagnostic procedure was followed, and determine warranty coverage eligibility.`
+};
+const roleQuestionFocus={
+  consumer:{
+    complaint:`Focus on: clarifying the full scope of the symptom, frequency, conditions when it occurs, any recent events before it started, warning lights or sounds.`,
+    cause:`Focus on: verifying a real diagnostic was performed (not just code reading), what specific tests confirm this cause, what was measured vs. specification, whether other causes were ruled out.`,
+    correction:`Focus on: confirming the repair addresses the root cause (not a symptom), what parts are being replaced and why, warranty on the repair, verification the vehicle was retested.`
+  },
+  facility:{
+    complaint:`Focus on: confirming the complaint is fully documented, whether the condition has been duplicated, any related symptoms, customer history with this issue.`,
+    cause:`Focus on: what diagnostic procedure was followed, specific measurements (voltage, pressure, resistance) vs. factory spec, whether TSBs or known issues apply, how the root cause was isolated and confirmed.`,
+    correction:`Focus on: whether the repair matches the confirmed cause, OEM vs. aftermarket parts, part numbers and quantities, whether the repair was verified with a road test and retest of DTCs.`
+  },
+  adjuster:{
+    complaint:`Focus on: whether the complaint is consistent with the reported failure, how long the condition existed before repair, mileage at failure, whether the owner was aware and delayed repair.`,
+    cause:`Focus on: whether the stated cause is supported by diagnostic evidence (scan data, waveforms, photos), whether OEM diagnostic procedures were followed, whether the failure is primary or secondary, any evidence of neglect or misuse.`,
+    correction:`Focus on: whether parts replaced are covered under warranty, whether labor operations match the cause, parts documentation and OEM part numbers, whether prior repairs on this component exist, total claim amount justification.`
+  }
+};
+
+function setRole(r){
+  role=r;
+  ['consumer','facility','adjuster'].forEach(x=>{
+    document.getElementById(`rt-${x}`).classList.toggle('active',x===r);
+  });
+}
+
+// ── MANUAL VIN ────────────────────────────────────────────
+function toggleManual(){
+  const m=document.getElementById('manual-row');
+  m.style.display=m.style.display==='none'?'block':'none';
+}
+function applyManual(){
+  veh.year=document.getElementById('m-year').value.trim();
+  veh.make=document.getElementById('m-make').value.trim();
+  veh.model=document.getElementById('m-model').value.trim();
+  veh.trim='';veh.engine='';veh.trans='';
+  renderVeh();
+  if(veh.year||veh.make||veh.model)alert_show('Vehicle info applied.','ok',2000);
+}
+
+// ── VIN DECODE ────────────────────────────────────────────
+async function decodeVIN(){
+  const vin=document.getElementById('vin-input').value.trim();
+  if(vin.length!==17){alert_show('VIN must be exactly 17 characters.','warn',3000);return;}
+  const btn=document.getElementById('decode-btn');
+  btn.disabled=true;btn.textContent='...';
+  try{
+    const r=await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/${vin}?format=json`);
+    const d=await r.json();
+    const get=v=>{const x=d.Results?.find(i=>i.Variable===v);return(x&&x.Value&&x.Value!=='Not Applicable'&&x.Value!=='null'&&x.Value!==null)?x.Value:'';};
+    veh.year=get('Model Year');
+    veh.make=get('Make');
+    veh.model=get('Model');
+    veh.trim=get('Trim')||get('Series')||'';
+    const disp=get('Displacement (L)'),cyl=get('Engine Number of Cylinders'),fuel=get('Fuel Type - Primary');
+    veh.engine=[disp?disp+'L':'',cyl?cyl+'-cyl':'',fuel].filter(Boolean).join(' ');
+    veh.trans=get('Transmission Style');
+    renderVeh();
+    alert_show(`Decoded: ${veh.year} ${veh.make} ${veh.model}`,'ok',3000);
+  }catch(e){alert_show('VIN decode failed — check the number and try again.','err',4000);}
+  finally{btn.disabled=false;btn.textContent='Decode';}
+}
+
+function renderVeh(){
+  const map={year:veh.year,make:veh.make,model:veh.model,trim:veh.trim,engine:veh.engine,trans:veh.trans};
+  for(const[k,v] of Object.entries(map)){
+    const el=document.getElementById(`vf-${k}`);
+    if(v){el.textContent=v;el.className='veh-cell-val';}
+    else{el.textContent='—';el.className='veh-cell-val empty';}
+  }
+}
+function vehStr(){return[veh.year,veh.make,veh.model,veh.trim,veh.engine].filter(Boolean).join(' ')||'Unknown vehicle';}
+
+// ── BADGE HELPERS ─────────────────────────────────────────
+const badgeClass={Weak:'badge-weak','Needs Detail':'badge-detail',Good:'badge-good',Strong:'badge-strong'};
+function setBadge(section,rating,feedback){
+  const b=document.getElementById(`badge-${section}`);
+  b.textContent=rating;
+  b.className='quality-badge '+(badgeClass[rating]||'badge-detail');
+  b.style.display='';
+  document.getElementById(`fb-${section}`).textContent=feedback||'';
+}
+
+// ── AUTO-GENERATE (debounced per section) ─────────────────
+const DEBOUNCE_MS = 1500;
+const MIN_CHARS   = 12;
+const timers      = {complaint:null, cause:null, correction:null};
+const pending     = {complaint:false, cause:false, correction:false};
+
+function onTextInput(section) {
+  const val = document.getElementById(`t-${section}`).value.trim();
+  const ts  = document.getElementById(`ts-${section}`);
+
+  clearTimeout(timers[section]);
+
+  if (val.length < MIN_CHARS) {
+    ts.innerHTML = '';
+    return;
+  }
+
+  ts.innerHTML = '<div class="spin"></div> typing...';
+
+  timers[section] = setTimeout(() => {
+    ts.innerHTML = '<div class="spin"></div> generating...';
+    generateSection(section);
+  }, DEBOUNCE_MS);
+}
+
+// Wire up listeners after DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+  ['complaint','cause','correction'].forEach(s => {
+    document.getElementById(`t-${s}`)
+      .addEventListener('input', () => onTextInput(s));
+  });
+});
+
+async function generateSection(section) {
+  const key = getKey();
+  if (!key) {
+    document.getElementById(`ts-${section}`).innerHTML =
+      '<span style="color:var(--red)">Set API key ↗</span>';
+    return;
+  }
+
+  const complaint  = document.getElementById('t-complaint').value.trim();
+  const cause      = document.getElementById('t-cause').value.trim();
+  const correction = document.getElementById('t-correction').value.trim();
+  const content    = document.getElementById(`t-${section}`).value.trim();
+
+  // Extract DTCs from cause text
+  const dtcMatches = cause.match(/\b[PBCU][0-9]{4}\b/g) || [];
+  const dtcs       = [...new Set(dtcMatches.map(d => d.toUpperCase()))];
+  const dtcStr     = dtcs.length ? dtcs.join(', ') : 'None detected';
+
+  const sectionLabel = {complaint:'Complaint', cause:'Cause', correction:'Correction'}[section];
+  const cfg = roleQuestionFocus[role];
+
+  // Show loading pill in the right column
+  document.getElementById(`qp-${section}`).innerHTML =
+    `<div class="q-loading"><div class="spin"></div>Analyzing ${sectionLabel}...</div>`;
+
+  const prompt = `You are an expert automotive diagnostic consultant.
+Role: ${roleContext[role]}
+Vehicle: ${vehStr()}
+DTC Codes (from cause text): ${dtcStr}
+Full CCC context —
+  Complaint: "${complaint || '(not entered)'}"
+  Cause: "${cause || '(not entered)'}"
+  Correction: "${correction || '(not entered)'}"
+
+Focus ONLY on the ${sectionLabel.toUpperCase()} section. Evaluate its quality and generate questions.
+${cfg ? cfg[section] : ''}
+
+Quality ratings:
+- "Weak" = vague, missing key info, or very short
+- "Needs Detail" = some info present but gaps remain
+- "Good" = solid documentation with minor gaps
+- "Strong" = thorough, specific, professionally documented
+
+Respond ONLY with valid JSON — no markdown, no extra text:
+{
+  "quality": "Weak|Needs Detail|Good|Strong",
+  "feedback": "One sentence of actionable feedback.",
+  "questions": ["Q1?","Q2?","Q3?","Q4?","Q5?"]
+}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-client-side-api-key-exposure': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 600,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+
+    const raw     = (data.content || []).map(b => b.text || '').join('');
+    const cleaned = raw.replace(/```json|```/g, '').trim();
+    const parsed  = JSON.parse(cleaned);
+
+    setBadge(section, parsed.quality, parsed.feedback);
+    renderPills(
+      `qp-${section}`,
+      parsed.questions,
+      section === 'cause' ? dtcs : []
+    );
+    document.getElementById(`ts-${section}`).innerHTML = '✓';
+    setTimeout(() => {
+      document.getElementById(`ts-${section}`).innerHTML = '';
+    }, 2000);
+
+  } catch(e) {
+    document.getElementById(`qp-${section}`).innerHTML =
+      `<div class="q-empty" style="color:var(--red);">Error: ${e.message}</div>`;
+    document.getElementById(`ts-${section}`).innerHTML =
+      `<span style="color:var(--red)">Error</span>`;
+  }
+}
+
+function renderPills(containerId, questions, dtcList){
+  const c=document.getElementById(containerId);
+  let html='';
+  // DTC pills at top (for cause column)
+  dtcList.forEach(code=>{
+    html+=`<div class="q-pill dtc-pill">${code}: Diagnostic Trouble Code — verify diagnostic path</div>`;
+  });
+  // Question pills
+  (questions||[]).forEach(q=>{
+    html+=`<div class="q-pill">${q}</div>`;
+  });
+  c.innerHTML=html||'<div class="q-empty">No questions generated.</div>';
+}
+
+// ── RECALLS ───────────────────────────────────────────────
+async function fetchRecalls(){
+  if(!veh.make||!veh.model||!veh.year){
+    alert_show('Decode a VIN or apply manual vehicle info first.','warn',3000);return;
+  }
+  const btn=document.getElementById('recall-btn');
+  btn.disabled=true;btn.textContent='Loading...';
+  document.getElementById('recall-body').innerHTML=
+    '<div class="lookup-loading"><div class="spin"></div>Fetching from NHTSA...</div>';
+  try{
+    const url=`https://api.nhtsa.gov/recalls/recallsByVehicle?make=${encodeURIComponent(veh.make)}&model=${encodeURIComponent(veh.model)}&modelYear=${encodeURIComponent(veh.year)}`;
+    const r=await fetch(url);
+    const d=await r.json();
+    const recalls=d.results||[];
+    const cnt=document.getElementById('recall-count');
+    if(recalls.length){
+      cnt.textContent=recalls.length;cnt.style.display='';cnt.className='count-badge';
+      document.getElementById('recall-body').innerHTML=recalls.map(r=>`
+        <div class="recall-item">
+          <div class="recall-component">${r.Component||'UNKNOWN COMPONENT'}</div>
+          <div class="recall-summary">${r.Summary||r.Consequence||'—'}</div>
+          <div class="recall-pills">
+            <span class="recall-pill">NHTSA# ${r.NHTSACampaignNumber||'—'}</span>
+            ${r.ReportReceivedDate?`<span class="recall-pill">${new Date(r.ReportReceivedDate).toLocaleDateString()}</span>`:''}
+            ${r.PotentialNumberofUnitsAffected?`<span class="recall-pill">${parseInt(r.PotentialNumberofUnitsAffected).toLocaleString()} units affected</span>`:''}
+          </div>
+        </div>`).join('');
+    }else{
+      cnt.style.display='none';
+      document.getElementById('recall-body').innerHTML=
+        `<div class="lookup-empty">✅ No open recalls found for the ${veh.year} ${veh.make} ${veh.model}.</div>`;
+    }
+  }catch(e){
+    document.getElementById('recall-body').innerHTML=
+      `<div class="lookup-empty" style="color:var(--red);">Failed to fetch recalls. Check your connection.</div>`;
+  }finally{btn.disabled=false;btn.textContent='Fetch Recalls';}
+}
+
+// ── TSBs ──────────────────────────────────────────────────
+async function fetchTSBs(){
+  if(!veh.make||!veh.model||!veh.year){
+    alert_show('Decode a VIN or apply manual vehicle info first.','warn',3000);return;
+  }
+  const btn=document.getElementById('tsb-btn');
+  btn.disabled=true;btn.textContent='Loading...';
+  document.getElementById('tsb-body').innerHTML=
+    '<div class="lookup-loading"><div class="spin"></div>Fetching from NHTSA...</div>';
+  try{
+    const url=`https://api.nhtsa.gov/tsbs/tsbsByVehicle?make=${encodeURIComponent(veh.make)}&model=${encodeURIComponent(veh.model)}&modelYear=${encodeURIComponent(veh.year)}`;
+    const r=await fetch(url);
+    const d=await r.json();
+    const tsbs=d.results||[];
+    const cnt=document.getElementById('tsb-count');
+    if(tsbs.length){
+      cnt.textContent=tsbs.length;cnt.style.display='';
+      document.getElementById('tsb-body').innerHTML=tsbs.map(t=>`
+        <div class="tsb-item">
+          <div class="tsb-id">TSB ${t.NHTSAActionNumber||t.tsbNumber||'—'}</div>
+          <div class="tsb-subject">${t.subject||t.Subject||t.summary||'—'}</div>
+          <div class="tsb-meta">${[t.Component,t.date?new Date(t.date).toLocaleDateString():''].filter(Boolean).join(' · ')}</div>
+        </div>`).join('');
+    }else{
+      cnt.style.display='none';
+      document.getElementById('tsb-body').innerHTML=
+        `<div class="lookup-empty">No TSBs found in NHTSA database for the ${veh.year} ${veh.make} ${veh.model}.<br><br>
+        <small>NHTSA TSB coverage varies by manufacturer. For full records, check the OEM service portal or
+        <a href="https://www.nhtsa.gov/vehicle-safety/recalls-and-defects" target="_blank">NHTSA.gov</a>.</small></div>`;
+    }
+  }catch(e){
+    document.getElementById('tsb-body').innerHTML=
+      `<div class="lookup-empty" style="color:var(--red);">Failed to fetch TSBs. The NHTSA TSB API may be temporarily unavailable.</div>`;
+  }finally{btn.disabled=false;btn.textContent='Fetch TSBs';}
+}
+</script>
+</body>
+</html>
