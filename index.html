@@ -675,6 +675,18 @@ function copyText(textareaId, btn) {
   });
 }
 
+// ── ENTER KEY TRIGGERS ANALYZE ────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  ['complaint','cause','correction'].forEach(s => {
+    document.getElementById(`t-${s}`).addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        analyzeSection(s);
+      }
+    });
+  });
+});
+
 // ── ANALYZE BUTTON ─────────────────────────────────────────
 function analyzeSection(section) {
   const val = document.getElementById(`t-${section}`).value.trim();
@@ -745,12 +757,13 @@ YOUR TASKS FOR THIS SECTION:
   : 'Generate concise, direct questions for the technician or repair facility. Avoid industry abbreviations — spell things out in plain terms. Keep each question as short as possible while remaining specific. One focused question per item — no compound questions.'
 }
 
-3. Nothing else. Return ONLY quality, feedback, and questions.
+3. CORRECTED TEXT — Rewrite the ${sectionLabel} entry as a clean, professional, concise repair order statement. Fix grammar, spelling, and clarity. Keep it factual and in third person (e.g. "Customer states..." / "Technician found..." / "Performed..."). Do not add information not present in the original — only clean up what was written.
 
 Respond ONLY with valid JSON — no markdown, no extra text:
 {
   "quality": "Weak|Needs Detail|Good|Strong",
   "feedback": "One sentence of actionable feedback on this section.",
+  "corrected": "Professionally corrected version of the text.",
   "questions": ["Q1?","Q2?","Q3?","Q4?","Q5?","Q6?"]
 }`;
 
@@ -773,6 +786,12 @@ Respond ONLY with valid JSON — no markdown, no extra text:
     const parsed  = JSON.parse(cleaned);
 
     setBadge(section, parsed.quality, parsed.feedback);
+
+    // Update the box with the corrected text
+    if (parsed.corrected && parsed.corrected.trim()) {
+      document.getElementById(`t-${section}`).value = parsed.corrected.trim();
+    }
+
     renderPills(
       `qp-${section}`,
       parsed.questions || [],
