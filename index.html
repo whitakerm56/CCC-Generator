@@ -187,6 +187,33 @@ main{max-width:1100px;margin:0 auto;padding:24px 20px 60px;}
 .typing-status{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px;white-space:nowrap;}
 .typing-status .spin{width:11px;height:11px;border-width:1.5px;}
 
+.q-section-label{
+  font-size:10px;font-weight:600;letter-spacing:1.5px;
+  color:var(--text3);margin:14px 0 6px;padding:0 2px;
+}
+.q-pill.oem-pill{
+  background:var(--bg2);border-color:rgba(251,191,36,0.2);
+  border-radius:8px;font-size:12px;color:var(--text2);
+  display:flex;gap:10px;align-items:flex-start;
+}
+.oem-num{
+  font-family:monospace;font-size:11px;font-weight:600;
+  color:var(--amber);min-width:20px;padding-top:1px;flex-shrink:0;
+}
+.q-pill.tsb-pill{
+  background:var(--bg2);border-color:rgba(129,140,248,0.2);
+  border-radius:8px;font-size:12px;
+}
+.tsb-pill-id{font-family:monospace;font-size:11px;font-weight:600;color:var(--teal);margin-bottom:3px;}
+.tsb-pill-title{font-size:12px;color:var(--text);margin-bottom:2px;}
+.tsb-pill-detail{font-size:11px;color:var(--text2);line-height:1.5;}
+.q-pill.cause-pill{
+  background:rgba(248,113,113,0.07);border-color:rgba(248,113,113,0.2);
+  font-size:12px;color:var(--text2);
+  display:flex;gap:8px;align-items:flex-start;
+}
+.cause-num{font-family:monospace;font-size:11px;font-weight:600;color:var(--red);min-width:20px;flex-shrink:0;}
+
 /* ── QUESTIONS COLUMNS ── */
 .q-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:24px;}
 .q-col{}
@@ -636,6 +663,52 @@ function setBadge(section,rating,feedback){
   document.getElementById(`fb-${section}`).textContent=feedback||'';
 }
 
+// ── JSON REPAIR — salvages truncated API responses ────────
+function repairJSON(str) {
+  const result = {
+    quality: 'Needs Detail',
+    feedback: '',
+    questions: [],
+    oem_steps: [],
+    tsbs: [],
+    common_causes: []
+  };
+
+  // Pull quality
+  const qm = str.match(/"quality"\s*:\s*"([^"]+)"/);
+  if (qm) result.quality = qm[1];
+
+  // Pull feedback
+  const fm = str.match(/"feedback"\s*:\s*"([^"]+)"/);
+  if (fm) result.feedback = fm[1];
+
+  // Pull arrays — grab every quoted string inside each array block
+  const pullArray = (key) => {
+    const block = str.match(new RegExp(`"${key}"\\s*:\\s*\\[([\\s\\S]*?)(?:\\]|$)`));
+    if (!block) return [];
+    return [...block[1].matchAll(/"((?:[^"\\]|\\.)*)"/g)]
+      .map(m => m[1].replace(/\\"/g, '"').replace(/\\n/g, ' ').trim())
+      .filter(s => s.length > 3);
+  };
+
+  result.questions     = pullArray('questions');
+  result.oem_steps     = pullArray('oem_steps');
+  result.common_causes = pullArray('common_causes');
+
+  // TSBs are objects — pull id/title/detail triplets
+  const tsbBlock = str.match(/"tsbs"\s*:\s*\[([\s\S]*?)(?:\]|$)/);
+  if (tsbBlock) {
+    const ids     = [...tsbBlock[1].matchAll(/"id"\s*:\s*"([^"]+)"/g)].map(m=>m[1]);
+    const titles  = [...tsbBlock[1].matchAll(/"title"\s*:\s*"([^"]+)"/g)].map(m=>m[1]);
+    const details = [...tsbBlock[1].matchAll(/"detail"\s*:\s*"([^"]+)"/g)].map(m=>m[1]);
+    ids.forEach((id, i) => {
+      result.tsbs.push({ id, title: titles[i]||'', detail: details[i]||'' });
+    });
+  }
+
+  return result;
+}
+
 // ── AUTO-GENERATE (debounced per section) ─────────────────
 const DEBOUNCE_MS = 1500;
 const MIN_CHARS   = 12;
@@ -694,29 +767,47 @@ async function generateSection(section) {
   document.getElementById(`qp-${section}`).innerHTML =
     `<div class="q-loading"><div class="spin"></div>Analyzing ${sectionLabel}...</div>`;
 
-  const prompt = `You are an expert automotive diagnostic consultant.
-Role: ${roleContext[role]}
-Vehicle: ${vehStr()}
-DTC Codes (from cause text): ${dtcStr}
-Full CCC context —
+  const prompt = `You are a master automotive diagnostic consultant with encyclopedic knowledge of OEM repair procedures, Technical Service Bulletins, known failure patterns, and factory diagnostic routines for all major vehicle makes and models.
+
+ROLE CONTEXT: ${roleContext[role]}
+
+VEHICLE: ${vehStr()}
+DTC CODES PRESENT: ${dtcStr}
+
+CCC DOCUMENTATION:
   Complaint: "${complaint || '(not entered)'}"
   Cause: "${cause || '(not entered)'}"
   Correction: "${correction || '(not entered)'}"
 
-Focus ONLY on the ${sectionLabel.toUpperCase()} section. Evaluate its quality and generate questions.
+CURRENT SECTION FOCUS: ${sectionLabel.toUpperCase()}
 ${cfg ? cfg[section] : ''}
 
-Quality ratings:
-- "Weak" = vague, missing key info, or very short
-- "Needs Detail" = some info present but gaps remain
-- "Good" = solid documentation with minor gaps
-- "Strong" = thorough, specific, professionally documented
+YOUR TASKS FOR THIS SECTION:
+
+1. QUALITY RATING — Evaluate the ${sectionLabel} entry:
+   - "Weak" = vague, missing key info, or very short
+   - "Needs Detail" = some info present but gaps remain  
+   - "Good" = solid with minor gaps
+   - "Strong" = thorough, specific, professionally documented
+
+2. DIAGNOSTIC QUESTIONS — Generate targeted questions to ask ${roleLabel[role]} specific to this section.
+
+3. OEM DIAGNOSTIC PROCEDURE — Based on the vehicle and DTCs, list the actual OEM-recommended diagnostic steps a technician should follow for this specific complaint/code combination. Be specific to the vehicle make/model/year if known. Reference factory scan tool PIDs, voltage specs, pressure specs, or resistance values where applicable. If a specific OEM procedure is well established, name it (e.g. "Ford KOEO/KOER self-test", "GM Mode 6 misfire data", "Toyota SFI system check A").
+
+4. KNOWN TSBs — List any Technical Service Bulletins you are aware of that apply to this vehicle and the codes or complaint described. Include the TSB number if known, the affected vehicles, and what the bulletin addresses. If you are not certain of an exact TSB number, describe the known issue pattern instead (e.g. "Honda issued a bulletin addressing P0420 on 2008-2012 Accords related to ECM reprogramming before cat replacement"). Be honest if your TSB knowledge for this specific vehicle is limited.
+
+5. COMMON FAILURE PATTERNS — For the DTCs and vehicle described, list the most statistically common root causes in order of likelihood based on real-world diagnostic experience.
 
 Respond ONLY with valid JSON — no markdown, no extra text:
 {
   "quality": "Weak|Needs Detail|Good|Strong",
-  "feedback": "One sentence of actionable feedback.",
-  "questions": ["Q1?","Q2?","Q3?","Q4?","Q5?"]
+  "feedback": "One sentence of actionable feedback on this section.",
+  "questions": ["Q1?","Q2?","Q3?","Q4?","Q5?","Q6?"],
+  "oem_steps": ["Step 1: ...", "Step 2: ...", "Step 3: ...", "Step 4: ...", "Step 5: ..."],
+  "tsbs": [
+    {"id": "TSB number or N/A", "title": "Brief title", "detail": "What it addresses and affected vehicles"}
+  ],
+  "common_causes": ["Most likely cause first", "Second most likely", "Third most likely"]
 }`;
 
   try {
@@ -730,7 +821,7 @@ Respond ONLY with valid JSON — no markdown, no extra text:
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 600,
+        max_tokens: 4096,
         messages: [{ role: 'user', content: prompt }]
       })
     });
@@ -739,13 +830,23 @@ Respond ONLY with valid JSON — no markdown, no extra text:
 
     const raw     = (data.content || []).map(b => b.text || '').join('');
     const cleaned = raw.replace(/```json|```/g, '').trim();
-    const parsed  = JSON.parse(cleaned);
+
+    let parsed;
+    try {
+      parsed = JSON.parse(cleaned);
+    } catch(jsonErr) {
+      // Response was truncated — attempt to salvage what we have
+      parsed = repairJSON(cleaned);
+    }
 
     setBadge(section, parsed.quality, parsed.feedback);
     renderPills(
       `qp-${section}`,
       parsed.questions,
-      section === 'cause' ? dtcs : []
+      section === 'cause' ? dtcs : [],
+      parsed.oem_steps || [],
+      parsed.tsbs || [],
+      parsed.common_causes || []
     );
     document.getElementById(`ts-${section}`).innerHTML = '✓';
     setTimeout(() => {
@@ -760,18 +861,56 @@ Respond ONLY with valid JSON — no markdown, no extra text:
   }
 }
 
-function renderPills(containerId, questions, dtcList){
-  const c=document.getElementById(containerId);
-  let html='';
-  // DTC pills at top (for cause column)
-  dtcList.forEach(code=>{
-    html+=`<div class="q-pill dtc-pill">${code}: Diagnostic Trouble Code — verify diagnostic path</div>`;
-  });
-  // Question pills
-  (questions||[]).forEach(q=>{
-    html+=`<div class="q-pill">${q}</div>`;
-  });
-  c.innerHTML=html||'<div class="q-empty">No questions generated.</div>';
+function renderPills(containerId, questions, dtcList, oemSteps, tsbs, commonCauses){
+  const c = document.getElementById(containerId);
+  let html = '';
+
+  // DTC identifier pills
+  if (dtcList.length) {
+    html += `<div class="q-section-label">CODES PRESENT</div>`;
+    dtcList.forEach(code => {
+      html += `<div class="q-pill dtc-pill">${code} — confirm code status: current, pending, or historical</div>`;
+    });
+  }
+
+  // Diagnostic questions
+  if (questions && questions.length) {
+    html += `<div class="q-section-label">QUESTIONS TO ASK</div>`;
+    questions.forEach(q => {
+      html += `<div class="q-pill">${q}</div>`;
+    });
+  }
+
+  // Common failure causes
+  if (commonCauses && commonCauses.length) {
+    html += `<div class="q-section-label">COMMON FAILURE CAUSES — BY LIKELIHOOD</div>`;
+    commonCauses.forEach((cause, i) => {
+      html += `<div class="q-pill cause-pill"><span class="cause-num">#${i+1}</span><span>${cause}</span></div>`;
+    });
+  }
+
+  // OEM diagnostic procedure
+  if (oemSteps && oemSteps.length) {
+    html += `<div class="q-section-label">OEM DIAGNOSTIC PROCEDURE</div>`;
+    oemSteps.forEach((step, i) => {
+      const text = step.replace(/^Step\s*\d+[:\-\s]*/i, '').trim();
+      html += `<div class="q-pill oem-pill"><span class="oem-num">${i+1}</span><span>${text}</span></div>`;
+    });
+  }
+
+  // Known TSBs
+  if (tsbs && tsbs.length) {
+    html += `<div class="q-section-label">KNOWN TSBs</div>`;
+    tsbs.forEach(t => {
+      html += `<div class="q-pill tsb-pill">
+        <div class="tsb-pill-id">${t.id && t.id !== 'N/A' ? t.id : 'Known Issue'}</div>
+        <div class="tsb-pill-title">${t.title || ''}</div>
+        <div class="tsb-pill-detail">${t.detail || ''}</div>
+      </div>`;
+    });
+  }
+
+  c.innerHTML = html || '<div class="q-empty">No data generated.</div>';
 }
 
 // ── RECALLS ───────────────────────────────────────────────
