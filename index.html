@@ -984,36 +984,84 @@ async function fetchTSBs(){
   if(!veh.make||!veh.model||!veh.year){
     alert_show('Decode a VIN or apply manual vehicle info first.','warn',3000);return;
   }
-  const btn=document.getElementById('tsb-btn');
-  btn.disabled=true;btn.textContent='Loading...';
-  document.getElementById('tsb-body').innerHTML=
-    '<div class="lookup-loading"><div class="spin"></div>Fetching from NHTSA...</div>';
-  try{
-    const url=`https://api.nhtsa.gov/tsbs/tsbsByVehicle?make=${encodeURIComponent(veh.make)}&model=${encodeURIComponent(veh.model)}&modelYear=${encodeURIComponent(veh.year)}`;
-    const r=await fetch(url);
-    const d=await r.json();
-    const tsbs=d.results||[];
-    const cnt=document.getElementById('tsb-count');
-    if(tsbs.length){
-      cnt.textContent=tsbs.length;cnt.style.display='';
-      document.getElementById('tsb-body').innerHTML=tsbs.map(t=>`
+
+  const btn = document.getElementById('tsb-btn');
+  btn.disabled = true; btn.textContent = 'Searching...';
+  document.getElementById('tsb-body').innerHTML =
+    '<div class="lookup-loading"><div class="spin"></div>Building search...</div>';
+
+  // Pull cause text and extract DTCs
+  const causeText = document.getElementById('t-cause').value.trim();
+  const dtcMatches = causeText.match(/\b[PBCU][0-9]{4}\b/g) || [];
+  const dtcs = [...new Set(dtcMatches.map(d => d.toUpperCase()))];
+
+  // Build smart search query
+  const vehiclePart = `${veh.year} ${veh.make} ${veh.model}${veh.engine ? ' ' + veh.engine : ''}`;
+  const dtcPart = dtcs.length ? dtcs.join(' ') : '';
+
+  // Use Claude to generate the best TSB search query from cause text
+  let searchQuery = `${vehiclePart} ${dtcPart} technical service bulletin TSB`.trim();
+
+  try {
+    if (causeText.length > 10) {
+      const res = await fetch('https://ccc-proxy.whitakerm56.workers.dev/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-6',
+          max_tokens: 60,
+          messages: [{
+            role: 'user',
+            content: `Generate the best Google search query to find Technical Service Bulletins for this situation. Return ONLY the search query, nothing else.
+Vehicle: ${vehiclePart}
+DTCs: ${dtcPart || 'none'}
+Cause notes: ${causeText.slice(0, 300)}
+Query:`
+          }]
+        })
+      });
+      const data = await res.json();
+      const aiQuery = (data.content||[]).map(b=>b.text||'').join('').trim().replace(/^["']|["']$/g,'');
+      if (aiQuery.length > 5) searchQuery = aiQuery;
+    }
+  } catch(e) {}
+
+  // Build Google search URL
+  const googleUrl = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
+
+  // Also try NHTSA in parallel
+  let nthsaHtml = '';
+  try {
+    const nhtsa = await fetch(`https://api.nhtsa.gov/tsbs/tsbsByVehicle?make=${encodeURIComponent(veh.make)}&model=${encodeURIComponent(veh.model)}&modelYear=${encodeURIComponent(veh.year)}`);
+    const nd = await nhtsa.json();
+    const tsbs = nd.results || [];
+    const cnt = document.getElementById('tsb-count');
+    if (tsbs.length) {
+      cnt.textContent = tsbs.length; cnt.style.display = '';
+      nthsaHtml = `<div style="font-size:11px;color:var(--text3);padding:10px 16px 4px;letter-spacing:.5px;">NHTSA DATABASE</div>` +
+        tsbs.map(t=>`
         <div class="tsb-item">
           <div class="tsb-id">TSB ${t.NHTSAActionNumber||t.tsbNumber||'—'}</div>
           <div class="tsb-subject">${t.subject||t.Subject||t.summary||'—'}</div>
           <div class="tsb-meta">${[t.Component,t.date?new Date(t.date).toLocaleDateString():''].filter(Boolean).join(' · ')}</div>
+          ${(t.NHTSAActionNumber||t.tsbNumber)?`<a href="https://www.nhtsa.gov/tsbs/tsb-detail?tsbNumber=${t.NHTSAActionNumber||t.tsbNumber}" target="_blank" class="nhtsa-link-btn">View on NHTSA.gov →</a>`:''}
         </div>`).join('');
-    }else{
-      cnt.style.display='none';
-      document.getElementById('tsb-body').innerHTML=
-        `<div class="lookup-empty">No TSBs found in NHTSA database for the ${veh.year} ${veh.make} ${veh.model}.<br><br>
-        <small>NHTSA TSB coverage varies by manufacturer. For full records, check the OEM service portal or
-        <a href="https://www.nhtsa.gov/vehicle-safety/recalls-and-defects" target="_blank">NHTSA.gov</a>.</small></div>`;
+    } else {
+      document.getElementById('tsb-count').style.display = 'none';
     }
-  }catch(e){
-    document.getElementById('tsb-body').innerHTML=
-      `<div class="lookup-empty" style="color:var(--red);">Failed to fetch TSBs. The NHTSA TSB API may be temporarily unavailable.</div>`;
-  }finally{btn.disabled=false;btn.textContent='Fetch TSBs';}
+  } catch(e) {}
+
+  document.getElementById('tsb-body').innerHTML = `
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:6px;letter-spacing:.5px;">WEB SEARCH</div>
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px;font-style:italic;">"${searchQuery}"</div>
+      <a href="${googleUrl}" target="_blank" class="nhtsa-link-btn" style="font-size:12px;padding:6px 14px;">Search Google for TSBs →</a>
+    </div>
+    ${nthsaHtml || `<div class="lookup-empty" style="font-size:12px;">No NHTSA records found for this vehicle.</div>`}`;
+
+  btn.disabled = false; btn.textContent = 'Fetch TSBs';
 }
+
 </script>
 </body>
 </html>
