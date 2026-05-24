@@ -625,7 +625,6 @@ function setBadge(section,rating,feedback){
 
 // ── RESET FORM ─────────────────────────────────────────────
 function resetForm() {
-  if (!confirm('Clear all fields and start over?')) return;
 
   // Clear textareas
   ['t-complaint','t-cause','t-correction'].forEach(id => {
