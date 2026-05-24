@@ -123,9 +123,27 @@ main{max-width:1100px;margin:0 auto;padding:24px 20px 60px;}
   background:var(--card);border:1px solid var(--border);
   border-radius:var(--r2);padding:16px;display:flex;flex-direction:column;gap:10px;
 }
-.ccc-card-head{display:flex;align-items:center;margin-bottom:2px;}
+.copy-btn{
+  background:transparent;border:1px solid var(--border2);
+  border-radius:7px;color:var(--text2);font-family:var(--font);
+  font-size:11px;font-weight:500;padding:4px 10px;
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.copy-btn:hover{border-color:var(--teal);color:var(--teal);}
+.copy-btn.copied{border-color:var(--green);color:var(--green);}
+
+.ccc-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:2px;}
 .ccc-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px;}
-.badge-row{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:8px;}
+.analyze-btn{
+  background:var(--teal);color:#fff;border:none;border-radius:7px;
+  font-family:var(--font);font-size:12px;font-weight:600;
+  padding:5px 14px;cursor:pointer;white-space:nowrap;
+  transition:opacity .15s;
+}
+.analyze-btn:hover{opacity:.85;}
+.analyze-btn:disabled{opacity:.4;cursor:not-allowed;}
+
+.badge-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px;}
 .ccc-title-row{display:flex;align-items:center;gap:8px;}
 .ccc-icon{
   width:32px;height:32px;border-radius:50%;
@@ -137,8 +155,7 @@ main{max-width:1100px;margin:0 auto;padding:24px 20px 60px;}
   font-size:11px;font-weight:600;border-radius:20px;
   padding:3px 10px;border:1px solid;white-space:nowrap;
 }
-.badge-pending{background:rgba(255,255,255,0.05);border-color:rgba(255,255,255,0.1);color:var(--text3);}
-.badge-analyzing{background:rgba(129,140,248,0.08);border-color:rgba(129,140,248,0.2);color:var(--teal);}
+.badge-pending{background:transparent;border-color:transparent;color:transparent;}
 .badge-weak{background:var(--red-bg);border-color:rgba(248,113,113,.3);color:var(--red);}.badge-detail{background:var(--amber-bg);border-color:rgba(245,158,11,.3);color:var(--amber);}
 .badge-good{background:var(--green-bg);border-color:rgba(74,222,128,.3);color:var(--green);}
 .badge-strong{background:var(--teal-bg);border-color:var(--teal-dim);color:var(--teal);}
@@ -380,13 +397,14 @@ footer a{color:var(--text3);}
           <div class="ccc-icon">⁉️</div>
           <div class="ccc-title">COMPLAINT</div>
         </div>
+        <button class="copy-btn" onclick="copyText('t-complaint', this)" title="Copy to clipboard">Copy</button>
       </div>
       <textarea class="ccc-textarea" id="t-complaint"
         placeholder="Describe the symptom or concern as the customer reported it. What did the customer say? When does it happen? How often?"></textarea>
       <div class="badge-row">
-        <div class="quality-badge badge-pending" id="badge-complaint">Awaiting Input</div>
+        <button class="analyze-btn" onclick="analyzeSection('complaint')" id="btn-complaint">Analyze</button>
         <div class="ccc-feedback" id="fb-complaint"></div>
-        <div class="typing-status" id="ts-complaint"></div>
+        <div class="quality-badge badge-pending" id="badge-complaint"></div>
       </div>
     </div>
 
@@ -396,13 +414,14 @@ footer a{color:var(--text3);}
           <div class="ccc-icon">💻</div>
           <div class="ccc-title">CAUSE</div>
         </div>
+        <button class="copy-btn" onclick="copyText('t-cause', this)" title="Copy to clipboard">Copy</button>
       </div>
       <textarea class="ccc-textarea" id="t-cause"
         placeholder="What did the technician find? What was measured? What specific component or system failed, and what diagnostic tests confirmed it?"></textarea>
       <div class="badge-row">
-        <div class="quality-badge badge-pending" id="badge-cause">Awaiting Input</div>
+        <button class="analyze-btn" onclick="analyzeSection('cause')" id="btn-cause">Analyze</button>
         <div class="ccc-feedback" id="fb-cause"></div>
-        <div class="typing-status" id="ts-cause"></div>
+        <div class="quality-badge badge-pending" id="badge-cause"></div>
       </div>
     </div>
 
@@ -412,13 +431,14 @@ footer a{color:var(--text3);}
           <div class="ccc-icon">🔧</div>
           <div class="ccc-title">CORRECTION</div>
         </div>
+        <button class="copy-btn" onclick="copyText('t-correction', this)" title="Copy to clipboard">Copy</button>
       </div>
       <textarea class="ccc-textarea" id="t-correction"
         placeholder="What was done to fix the vehicle? What parts were replaced? Was the repair verified? Did the vehicle pass a road test or retest?"></textarea>
       <div class="badge-row">
-        <div class="quality-badge badge-pending" id="badge-correction">Awaiting Input</div>
+        <button class="analyze-btn" onclick="analyzeSection('correction')" id="btn-correction">Analyze</button>
         <div class="ccc-feedback" id="fb-correction"></div>
-        <div class="typing-status" id="ts-correction"></div>
+        <div class="quality-badge badge-pending" id="badge-correction"></div>
       </div>
     </div>
 
@@ -574,42 +594,29 @@ function setBadge(section,rating,feedback){
   document.getElementById(`fb-${section}`).textContent=feedback||'';
 }
 
-// ── AUTO-GENERATE (debounced per section) ─────────────────
-const DEBOUNCE_MS = 1500;
-const MIN_CHARS   = 12;
-const timers      = {complaint:null, cause:null, correction:null};
-const pending     = {complaint:false, cause:false, correction:false};
-
-function onTextInput(section) {
-  const val = document.getElementById(`t-${section}`).value.trim();
-  const ts  = document.getElementById(`ts-${section}`);
-  const badge = document.getElementById(`badge-${section}`);
-
-  clearTimeout(timers[section]);
-
-  if (val.length < MIN_CHARS) {
-    ts.innerHTML = '';
-    badge.textContent = 'Awaiting Input';
-    badge.className = 'quality-badge badge-pending';
-    return;
-  }
-
-  badge.textContent = 'Analyzing...';
-  badge.className = 'quality-badge badge-analyzing';
-  ts.innerHTML = '';
-
-  timers[section] = setTimeout(() => {
-    generateSection(section);
-  }, DEBOUNCE_MS);
+// ── COPY TO CLIPBOARD ──────────────────────────────────────
+function copyText(textareaId, btn) {
+  const text = document.getElementById(textareaId).value.trim();
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓ Copied';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
 }
 
-// Wire up listeners after DOM ready
-document.addEventListener('DOMContentLoaded', () => {
-  ['complaint','cause','correction'].forEach(s => {
-    document.getElementById(`t-${s}`)
-      .addEventListener('input', () => onTextInput(s));
-  });
-});
+// ── ANALYZE BUTTON ─────────────────────────────────────────
+function analyzeSection(section) {
+  const val = document.getElementById(`t-${section}`).value.trim();
+  if (!val) {
+    alert_show('Please enter some text before analyzing.', 'warn', 2500);
+    return;
+  }
+  generateSection(section);
+}
 
 async function generateSection(section) {
 
@@ -627,6 +634,9 @@ async function generateSection(section) {
 
   // Don't clear existing questions — keep them visible while re-analyzing
   // Only update the badge to show analyzing state
+  const btn = document.getElementById(`btn-${section}`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Analyzing...'; }
+
   const existingPills = document.getElementById(`qp-${section}`);
   const hasExisting = existingPills.querySelector('.q-pill');
   if (!hasExisting) {
@@ -713,13 +723,12 @@ Respond ONLY with valid JSON — no markdown, no extra text:
       parsed.tsbs          || [],
       parsed.common_causes || []
     );
-    document.getElementById(`ts-${section}`).innerHTML = '';
+    if (btn) { btn.disabled = false; btn.textContent = 'Analyze'; }
 
   } catch(e) {
     document.getElementById(`qp-${section}`).innerHTML =
       `<div class="q-empty" style="color:var(--red);">Error: ${e.message}</div>`;
-    document.getElementById(`ts-${section}`).innerHTML =
-      `<span style="color:var(--red)">Error</span>`;
+    if (btn) { btn.disabled = false; btn.textContent = 'Analyze'; }
   }
 }
 
@@ -804,7 +813,7 @@ function renderPills(containerId, questions, dtcList, oemSteps, tsbs, commonCaus
 
 // ── COMPLAINT QUESTION INTERACTION ────────────────────────
 
-function submitAnswer(qid, question, containerId) {
+async function submitAnswer(qid, question, containerId) {
   const pill    = document.getElementById(qid);
   const input   = pill.querySelector('.q-answer-input');
   const row     = pill.querySelector('.q-answer-row');
@@ -812,7 +821,12 @@ function submitAnswer(qid, question, containerId) {
   const answer  = input.value.trim();
   if (!answer) return;
 
-  // Map column to textarea and section
+  // Disable input while summarizing
+  input.disabled = true;
+  pill.querySelector('.q-answer-submit').disabled = true;
+  tag.style.display  = 'block';
+  tag.textContent    = '⏳ Summarizing...';
+
   const map = {
     'qp-complaint':  { textareaId: 't-complaint',  section: 'complaint'  },
     'qp-cause':      { textareaId: 't-cause',       section: 'cause'      },
@@ -821,21 +835,45 @@ function submitAnswer(qid, question, containerId) {
   const target = map[containerId];
   if (!target) return;
 
-  const textarea = document.getElementById(target.textareaId);
-  const existing = textarea.value.trim();
-  const entry    = `${question} ${answer}.`;
-  textarea.value = existing ? existing + ' ' + entry : entry;
+  try {
+    const res = await fetch('https://ccc-proxy.whitakerm56.workers.dev/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 100,
+        messages: [{
+          role: 'user',
+          content: `Convert this question and answer into a single concise factual statement suitable for an automotive repair order. Be brief — one short sentence only. No preamble, no explanation, just the statement.
 
-  // Mark pill as answered
-  row.style.display  = 'none';
-  tag.style.display  = 'block';
-  pill.style.opacity = '0.6';
-  pill.onclick       = null;
-  input.value        = '';
+Question: ${question}
+Answer: ${answer}
 
-  // Re-analyze the appropriate section
-  clearTimeout(timers[target.section]);
-  timers[target.section] = setTimeout(() => generateSection(target.section), 1800);
+Statement:`
+        }]
+      })
+    });
+
+    const data      = await res.json();
+    const summary   = (data.content || []).map(b => b.text || '').join('').trim();
+    const textarea  = document.getElementById(target.textareaId);
+    const existing  = textarea.value.trim();
+    textarea.value  = existing ? existing + ' ' + summary : summary;
+
+    // Mark pill as done
+    row.style.display  = 'none';
+    tag.textContent    = '✓ Added';
+    tag.style.color    = 'var(--green)';
+    pill.style.opacity = '0.6';
+
+    // Re-analyze the section
+    setTimeout(() => generateSection(target.section), 1800);
+
+  } catch(e) {
+    tag.textContent = '⚠ Error — try again';
+    input.disabled  = false;
+    pill.querySelector('.q-answer-submit').disabled = false;
+  }
 }
 
 // ── RECALLS ───────────────────────────────────────────────
