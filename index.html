@@ -35,19 +35,11 @@
 body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;line-height:1.5;}
 
 /* ── TOPBAR ── */
-.topbar{
-  background:var(--bg2);
-  border-bottom:1px solid var(--border);
-  padding:0 20px;
-  position:sticky;top:0;z-index:100;
-}
 .topbar-inner{
-  max-width:1100px;
-  margin:0 auto;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  height:76px;
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--r2);padding:0 20px;
+  height:76px;margin-bottom:16px;
 }
 .logo-row{display:flex;align-items:center;gap:10px;}
 .logo-badge{
@@ -344,34 +336,33 @@ footer a{color:var(--text3);}
 </head>
 <body>
 
-<!-- TOPBAR -->
-<div class="topbar">
-  <div class="topbar-inner">
-  <div class="logo-row">
-    <svg height="58" width="58" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-      <rect width="64" height="64" rx="14" fill="#1e1e3a"/>
-      <rect x="10" y="18" width="44" height="30" rx="6" fill="none" stroke="#818cf8" stroke-width="4"/>
-      <circle cx="22" cy="30" r="4" fill="#818cf8"/>
-      <circle cx="32" cy="30" r="4" fill="#818cf8"/>
-      <circle cx="42" cy="30" r="4" fill="#818cf8"/>
-      <circle cx="22" cy="40" r="4" fill="#f59e0b"/>
-      <circle cx="32" cy="40" r="4" fill="#f59e0b"/>
-      <circle cx="42" cy="40" r="4" fill="#818cf8"/>
-      <rect x="22" y="48" width="20" height="4" rx="2" fill="#818cf8"/>
-    </svg>
-    <div>
-      <div class="logo-name">CCC Co-Pilot</div>
-      <div class="logo-sub">Complaint · Cause · Correction</div>
-      <div style="font-size:11px; color:var(--teal); font-weight:500; margin-top:2px; letter-spacing:0.3px; font-style:italic;">Smarter Write-Ups. Stronger Claims.</div>
-    </div>
-  </div>
-  <div class="topbar-right">
-    <button class="reset-btn" onclick="resetForm()">↺ Reset Form</button>
-  </div>
-  </div>
-</div>
 
 <main>
+  <!-- HEADER -->
+  <div class="topbar-inner">
+    <div class="logo-row">
+      <svg height="58" width="58" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <rect width="64" height="64" rx="14" fill="#1e1e3a"/>
+        <rect x="10" y="18" width="44" height="30" rx="6" fill="none" stroke="#818cf8" stroke-width="4"/>
+        <circle cx="22" cy="30" r="4" fill="#818cf8"/>
+        <circle cx="32" cy="30" r="4" fill="#818cf8"/>
+        <circle cx="42" cy="30" r="4" fill="#818cf8"/>
+        <circle cx="22" cy="40" r="4" fill="#f59e0b"/>
+        <circle cx="32" cy="40" r="4" fill="#f59e0b"/>
+        <circle cx="42" cy="40" r="4" fill="#818cf8"/>
+        <rect x="22" y="48" width="20" height="4" rx="2" fill="#818cf8"/>
+      </svg>
+      <div>
+        <div class="logo-name">CCC Co-Pilot</div>
+        <div class="logo-sub">Complaint · Cause · Correction</div>
+        <div style="font-size:11px; color:var(--teal); font-weight:500; margin-top:2px; letter-spacing:0.3px; font-style:italic;">Smarter Write-Ups. Stronger Claims.</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="reset-btn" onclick="resetForm()">↺ Reset Form</button>
+    </div>
+  </div>
+
   <!-- ALERTS -->
   <div id="alert-area"></div>
 
