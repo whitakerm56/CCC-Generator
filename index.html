@@ -192,6 +192,13 @@ main{max-width:1100px;margin:0 auto;padding:24px 20px 60px;}
 .q-answer-row{
   display:flex;gap:6px;margin-top:8px;align-items:center;
 }
+.q-mic-btn{
+  background:#007aff;border:none;border-radius:50%;color:#fff;
+  width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:13px;flex-shrink:0;transition:background .15s,opacity .15s;
+}
+.q-mic-btn:hover{opacity:.85;}
+.q-mic-btn.recording{background:#ff3b30;animation:mic-pulse .9s ease-in-out infinite;}
 .q-answer-input{
   flex:1;background:var(--bg);border:1px solid var(--border2);
   border-radius:6px;color:var(--text);font-family:var(--font);
@@ -630,6 +637,7 @@ function setBadge(section,rating,feedback){
 function resetForm() {
   // Stop any active mic recording
   if (activeRecognition) { activeRecognition.stop(); }
+  if (activeAnswerMic)   { activeAnswerMic.stop(); }
 
   // Clear textareas
   ['t-complaint','t-cause','t-correction'].forEach(id => {
@@ -749,6 +757,71 @@ function stopMic(section) {
   }
   activeRecognition = null;
   activeMicSection  = null;
+}
+
+// Inline mic for question answer inputs
+let activeAnswerMic = null;
+let activeAnswerBtn = null;
+
+function toggleAnswerMic(micBtn, input) {
+  // Stop any section-level mic first
+  if (activeRecognition) { activeRecognition.stop(); }
+
+  // Toggle off if this button is already recording
+  if (activeAnswerMic && activeAnswerBtn === micBtn) {
+    activeAnswerMic.stop();
+    return;
+  }
+  // Stop a different answer mic
+  if (activeAnswerMic) { activeAnswerMic.stop(); }
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert_show('Speech recognition is not supported in this browser.', 'warn', 4000);
+    return;
+  }
+
+  const rec = new SpeechRecognition();
+  rec.continuous     = true;
+  rec.interimResults = true;
+  rec.lang           = 'en-US';
+
+  rec.onstart = () => {
+    activeAnswerMic = rec;
+    activeAnswerBtn = micBtn;
+    micBtn.classList.add('recording');
+  };
+
+  rec.onresult = (e) => {
+    let final = '', interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) final += t;
+      else interim += t;
+    }
+    if (final) {
+      const sep = input.value.trim() ? ' ' : '';
+      input.value = input.value.trimEnd() + sep + final.trim();
+    } else if (interim) {
+      const sep = input.value.trim() ? ' ' : '';
+      input.value = input.value.trimEnd() + sep + interim;
+    }
+  };
+
+  rec.onerror = (e) => {
+    if (e.error !== 'aborted') alert_show(`Microphone error: ${e.error}`, 'err', 3000);
+    stopAnswerMic();
+  };
+
+  rec.onend = () => stopAnswerMic();
+
+  rec.start();
+}
+
+function stopAnswerMic() {
+  if (activeAnswerBtn) activeAnswerBtn.classList.remove('recording');
+  activeAnswerMic = null;
+  activeAnswerBtn = null;
 }
 
 // ── COPY TO CLIPBOARD ──────────────────────────────────────
@@ -928,6 +1001,7 @@ function renderPills(containerId, questions, dtcList, oemSteps, tsbs, commonCaus
         <div class="q-pill q-interactive" id="${qid}" data-question="${safeQ}" data-container="${containerId}">
           <div class="q-pill-text">${q}</div>
           <div class="q-answer-row">
+            <button class="q-mic-btn" title="Speak answer" aria-label="Speak answer"><i class="ti ti-microphone" aria-hidden="true"></i></button>
             <input class="q-answer-input" type="text" placeholder="Type answer and press Enter..." />
             <button class="q-answer-submit">→</button>
           </div>
@@ -942,6 +1016,7 @@ function renderPills(containerId, questions, dtcList, oemSteps, tsbs, commonCaus
   c.querySelectorAll('.q-interactive').forEach(pill => {
     const input  = pill.querySelector('.q-answer-input');
     const btn    = pill.querySelector('.q-answer-submit');
+    const micBtn = pill.querySelector('.q-mic-btn');
     const submit = () => {
       const question    = pill.dataset.question;
       const containerId = pill.dataset.container;
@@ -949,6 +1024,7 @@ function renderPills(containerId, questions, dtcList, oemSteps, tsbs, commonCaus
     };
     input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
     btn.addEventListener('click', submit);
+    if (micBtn) micBtn.addEventListener('click', () => toggleAnswerMic(micBtn, input));
   });
 }
 
