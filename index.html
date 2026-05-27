@@ -157,8 +157,8 @@ main{max-width:1100px;margin:0 auto;padding:24px 20px 60px;}
 }
 .badge-pending{background:transparent;border-color:transparent;color:transparent;}
 .badge-weak{background:var(--red-bg);border-color:rgba(248,113,113,.3);color:var(--red);}.badge-detail{background:var(--amber-bg);border-color:rgba(245,158,11,.3);color:var(--amber);}
-.badge-good{background:var(--green-bg);border-color:rgba(74,222,128,.3);color:var(--green);}
-.badge-strong{background:var(--teal-bg);border-color:var(--teal-dim);color:var(--teal);}
+.badge-good{background:var(--amber-bg);border-color:rgba(251,191,36,.3);color:var(--amber);}
+.badge-strong{background:var(--green-bg);border-color:rgba(74,222,128,.3);color:var(--green);}
 
 .ccc-textarea{
   width:100%;background:var(--bg2);border:1px solid var(--border);
@@ -602,11 +602,11 @@ function renderVeh(){
 function vehStr(){return[veh.year,veh.make,veh.model,veh.trim,veh.engine].filter(Boolean).join(' ')||'Unknown vehicle';}
 
 // ── BADGE HELPERS ─────────────────────────────────────────
-const badgeClass={Weak:'badge-weak','Needs Detail':'badge-detail',Good:'badge-good',Strong:'badge-strong'};
+const badgeClass={Weak:'badge-weak',Good:'badge-good',Great:'badge-strong'};
 function setBadge(section,rating,feedback){
   const b=document.getElementById(`badge-${section}`);
   b.textContent=rating;
-  b.className='quality-badge '+(badgeClass[rating]||'badge-detail');
+  b.className='quality-badge '+(badgeClass[rating]||'badge-good');
   document.getElementById(`fb-${section}`).textContent=feedback||'';
 }
 
@@ -710,10 +710,24 @@ async function generateSection(section) {
   }
 
   const sectionFocus = {
-    complaint:`The COMPLAINT section is the customer's voice — what they told the Service Advisor when they brought the vehicle in. The questions generated here are ONLY for a SERVICE ADVISOR to ask the CUSTOMER to extract a complete, accurate symptom description. Focus on: exactly what the customer is experiencing, when and how often it happens, under what conditions (cold start, highway speed, after rain, under load, etc.), how long it has been occurring, whether any warning lights are on, whether any recent repairs or events preceded the issue, and any sounds, smells, or sensations the customer noticed. The goal is a symptom picture detailed enough that a technician can attempt to duplicate the condition. IMPORTANT: Do NOT generate any questions about DTCs, diagnostic codes, scan tools, or technical diagnosis — the customer does not know about those things and that is not their domain. Do NOT ask the customer what codes are stored. Keep all questions in plain, everyday language a non-technical vehicle owner would understand.`,
+    complaint:`The COMPLAINT section is the customer's voice — what they told the Service Advisor when they brought the vehicle in. The questions generated here are ONLY for a SERVICE ADVISOR to ask the CUSTOMER to extract a complete, accurate symptom description. Focus on: exactly what the customer is experiencing, when and how often it happens, under what conditions (cold start, highway speed, after rain, under load, etc.), how long it has been occurring, whether any warning lights are on, whether any recent repairs or events preceded the issue, and any sounds, smells, or sensations the customer noticed. The goal is a symptom picture detailed enough that a technician can attempt to duplicate the condition. IMPORTANT: Do NOT generate any questions about DTCs, diagnostic codes, scan tools, or technical diagnosis — the customer does not know about those things and that is not their domain. Do NOT ask the customer what codes are stored. Do NOT ask about the vehicle's mileage. Keep all questions in plain, everyday language a non-technical vehicle owner would understand.`,
     cause:`Focus on: what specific diagnostic procedure was followed step by step, exact measurements taken (voltage, resistance, pressure, flow rate) vs. factory specification, what scan data and live PIDs were observed, whether the technician confirmed the root cause vs. treating a symptom, whether the failure is primary or secondary to another condition, and whether applicable TSBs were checked and followed.`,
     correction:`Focus on: whether the repair directly addresses the confirmed root cause, whether the correct repair procedure was followed, whether the vehicle was road tested after repair, whether the fault was retested and confirmed resolved, and whether the repair meets warranty coverage criteria.`
   }[section];
+
+
+  // Collect already-asked questions from the other two sections to avoid duplicates
+  const otherSections = ['complaint','cause','correction'].filter(s => s !== section);
+  const existingQuestions = [];
+  otherSections.forEach(s => {
+    document.querySelectorAll(`#qp-${s} .q-pill-text`).forEach(el => {
+      const q = el.textContent.trim();
+      if (q) existingQuestions.push(q);
+    });
+  });
+  const dedupClause = existingQuestions.length
+    ? `\n\nDO NOT REPEAT QUESTIONS: The following questions have already been asked in other sections. Do not generate any question that is the same or substantially similar to these:\n${existingQuestions.map((q,i) => `${i+1}. ${q}`).join('\n')}`
+    : '';
 
   const prompt = `You are a master automotive diagnostic consultant with encyclopedic knowledge of OEM repair procedures, Technical Service Bulletins, known failure patterns, and factory diagnostic routines for all major vehicle makes and models.
 
@@ -734,20 +748,21 @@ YOUR TASKS FOR THIS SECTION:
 
 1. QUALITY RATING — Evaluate the ${sectionLabel} entry:
    - "Weak" = vague, missing key info, or very short
-   - "Needs Detail" = some info present but gaps remain
-   - "Good" = solid with minor gaps
-   - "Strong" = thorough, specific, professionally documented
+   - "Good" = reasonable detail but gaps remain
+   - "Great" = thorough, specific, professionally documented
 
 2. DIAGNOSTIC QUESTIONS — ${section === 'complaint'
   ? 'Generate concise, direct questions a SERVICE ADVISOR asks the CUSTOMER. Plain language only — no technical jargon, no DTCs, no industry abbreviations. Keep questions as short as possible while still being clear. One focused question per item — no compound questions.'
   : 'Generate concise, direct questions for the technician or repair facility. Avoid industry abbreviations — spell things out in plain terms. Keep each question as short as possible while remaining specific. One focused question per item — no compound questions.'
 }
 
-3. CORRECTED TEXT — Rewrite the ${sectionLabel} entry as a clean, professional, concise repair order statement. Fix grammar, spelling, and clarity. Keep it factual and in third person (e.g. "Customer states..." / "Technician found..." / "Performed..."). Do not add information not present in the original — only clean up what was written.
+3. CORRECTED TEXT — Rewrite the ${sectionLabel} entry as a clean, professional, concise repair order statement. Fix grammar, spelling, and clarity. Keep it factual and in third person (e.g. "Customer states..." / "Technician found..." / "Performed..."). Do not add information not present in the original — only clean up what was written.${section === 'complaint' ? ' IMPORTANT: "Customer states" (or equivalent phrasing) must appear ONLY in the first sentence. Do NOT begin any subsequent sentence with "Customer states" or any variation of it — continue naturally without re-attributing every sentence.' : ''}
+
+${dedupClause}
 
 Respond ONLY with valid JSON — no markdown, no extra text:
 {
-  "quality": "Weak|Needs Detail|Good|Strong",
+  "quality": "Weak|Good|Great",
   "feedback": "One sentence of actionable feedback on this section.",
   "corrected": "Professionally corrected version of the text.",
   "questions": ["Q1?","Q2?","Q3?","Q4?","Q5?","Q6?"]
