@@ -935,10 +935,6 @@ Respond ONLY with valid JSON — no markdown, no extra text:
       document.getElementById(`t-${section}`).value = parsed1.corrected.trim();
     }
 
-    // Show generating indicator for questions
-    document.getElementById(`qp-${section}`).innerHTML =
-      `<div class="q-loading"><div class="spin"></div>Generating questions...</div>`;
-
     // ── CALL 2: Questions based on the rewritten text ──────
     const rewrittenText = document.getElementById(`t-${section}`).value.trim();
     const rewrittenComplaint  = section === 'complaint'  ? rewrittenText : document.getElementById('t-complaint').value.trim();
