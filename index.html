@@ -625,7 +625,7 @@ function renderVeh(){
 function vehStr(){return[veh.year,veh.make,veh.model,veh.trim,veh.engine].filter(Boolean).join(' ')||'Unknown vehicle';}
 
 // ── BADGE HELPERS ─────────────────────────────────────────
-const badgeClass={'😬 Come On Now':'badge-weak','🙂 Getting Somewhere':'badge-good',"😎 Now We're Talking":'badge-strong'};
+const badgeClass={Weak:'badge-weak',Good:'badge-good',Great:'badge-strong'};
 function setBadge(section,rating,feedback){
   const b=document.getElementById(`badge-${section}`);
   b.textContent=rating;
@@ -967,9 +967,9 @@ ${sectionFocus}
 YOUR TASKS:
 
 1. QUALITY RATING — Evaluate the rewritten ${sectionLabel} entry:
-   - "😬 Come On Now" = vague, missing key info, very short, missing the core element, or states the core element with no supporting detail whatsoever (e.g. just "check engine light is on" with nothing else)
-   - "🙂 Getting Somewhere" = core element is present AND at least one supporting detail exists (conditions, duration, frequency, findings, etc.) but meaningful gaps remain
-   - "😎 Now We're Talking" = core element is clearly present AND supported by enough relevant detail that a technician or adjuster has a solid picture — does not need to be exhaustive
+   - "Weak" = vague, missing key info, very short, or missing the core element of this section
+   - "Good" = core element is present but supporting detail or context is thin
+   - "Great" = core element clearly present AND supported by at least some relevant detail — does not need to be exhaustive
 
 2. DIAGNOSTIC QUESTIONS for the ${sectionLabel} section:
 
@@ -981,7 +981,7 @@ ${updatedDedupClause}
 
 Respond ONLY with valid JSON — no markdown, no extra text:
 {
-  "quality": "😬 Come On Now|🙂 Getting Somewhere|😎 Now We're Talking",
+  "quality": "Weak|Good|Great",
   "feedback": "One sentence of actionable feedback on this section.",
   "questions": ["Q1?","Q2?","Q3?","Q4?","Q5?","Q6?"]
 }`;
