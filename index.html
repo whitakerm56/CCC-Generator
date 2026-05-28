@@ -793,6 +793,7 @@ function toggleAnswerMic(micBtn, input) {
 
   rec.onend = () => stopAnswerMic();
 
+  input.focus();
   rec.start();
 }
 
