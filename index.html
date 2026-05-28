@@ -873,16 +873,16 @@ async function generateSection(section) {
 
 
   // Collect already-asked questions from the other two sections to avoid duplicates
-  const otherSections = ['complaint','cause','correction'].filter(s => s !== section);
+  // Collect already-asked questions from ALL sections (including current) to avoid repeats
   const existingQuestions = [];
-  otherSections.forEach(s => {
+  ['complaint','cause','correction'].forEach(s => {
     document.querySelectorAll(`#qp-${s} .q-pill-text`).forEach(el => {
       const q = el.textContent.trim();
       if (q) existingQuestions.push(q);
     });
   });
   const dedupClause = existingQuestions.length
-    ? `\n\nDO NOT REPEAT QUESTIONS: The following questions have already been asked in other sections. Do not generate any question that is the same or substantially similar to these:\n${existingQuestions.map((q,i) => `${i+1}. ${q}`).join('\n')}`
+    ? `\n\nDO NOT REPEAT QUESTIONS: The following questions have already been asked. Do not generate any question that is the same or substantially similar to these:\n${existingQuestions.map((q,i) => `${i+1}. ${q}`).join('\n')}`
     : '';
 
   const prompt = `You are a master automotive diagnostic consultant with encyclopedic knowledge of OEM repair procedures, Technical Service Bulletins, known failure patterns, and factory diagnostic routines for all major vehicle makes and models.
@@ -909,7 +909,7 @@ YOUR TASKS FOR THIS SECTION:
 
 2. DIAGNOSTIC QUESTIONS — ${section === 'complaint'
   ? 'Generate concise, direct questions a SERVICE ADVISOR asks the CUSTOMER. Plain language only — no technical jargon, no DTCs, no industry abbreviations. Keep questions as short as possible while still being clear. One focused question per item — no compound questions. CRITICAL: Read the existing text carefully first — do NOT ask about anything that is already stated, described, or answered in the current entry. Only ask about genuine gaps.'
-  : 'Generate concise, direct questions for the technician or repair facility. Avoid industry abbreviations — spell things out in plain terms. Keep each question as short as possible while remaining specific. One focused question per item — no compound questions. CRITICAL: Read the existing text carefully first — do NOT ask about anything that is already stated, described, confirmed, or answered in the current entry. Only ask about genuine gaps not covered by what is already written.'
+  : 'Generate concise, direct questions for the technician or repair facility. Avoid industry abbreviations — spell things out in plain terms. Keep each question as short as possible while remaining specific. One focused question per item — no compound questions. CRITICAL: Read the existing text carefully first — do NOT ask about anything that is already stated, described, confirmed, or answered in the current entry. Only ask about genuine gaps not covered by what is already written. FLUID LEVELS: Whenever asking about any fluid level (oil, coolant, transmission fluid, brake fluid, power steering fluid, etc.), always ask specifically whether the level is above the MIN line and below the MAX line on the dipstick or reservoir — not just whether it is "normal" or "within spec".'
 }
 
 3. CORRECTED TEXT — Rewrite the ${sectionLabel} entry as a clean, professional repair order statement. Fix grammar, spelling, and clarity. Keep it factual, in third person, and as SHORT as possible — short sentences, no filler, no redundancy, no over-explanation. A good repair order statement is punchy and direct, not a paragraph. Do not add information not present in the original — only clean up what was written.${section === 'complaint' ? ' IMPORTANT: "Customer states" (or equivalent phrasing) must appear ONLY in the first sentence. Do NOT begin any subsequent sentence with "Customer states" or any variation of it — continue naturally without re-attributing every sentence.' : ''}${section === 'cause' ? ' Format as short declarative statements: what was found, what was measured, what the root cause is. Example style: "Scanned for DTCs. Found P0420. Tested O2 sensors — rear sensor response flat. Root cause: failed rear O2 sensor."' : ''}${section === 'correction' ? ' Format as short action statements: what was done, what was replaced, how it was verified. Example style: "Replaced rear O2 sensor. Cleared DTCs. Road tested — no return of fault. Repair verified."' : ''}
