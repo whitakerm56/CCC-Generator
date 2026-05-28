@@ -862,7 +862,7 @@ async function generateSection(section) {
   const hasExisting = existingPills.querySelector('.q-pill');
   if (!hasExisting) {
     existingPills.innerHTML =
-      `<div class="q-loading"><div class="spin"></div>Analyzing ${sectionLabel}...</div>`;
+      `<div class="q-loading"><div class="spin"></div>Rewriting ${sectionLabel}...</div>`;
   }
 
   const sectionFocus = {
@@ -900,63 +900,115 @@ CCC DOCUMENTATION:
 CURRENT SECTION FOCUS: ${sectionLabel.toUpperCase()}
 ${sectionFocus}
 
-YOUR TASKS FOR THIS SECTION:
+YOUR TASK FOR THIS SECTION:
 
-1. QUALITY RATING — Evaluate the ${sectionLabel} entry:
-   - "😬 Come On Now" = vague, missing key info, very short, or missing the core element of this section
-   - "🙂 Getting Somewhere" = core element is present but supporting detail or context is thin
-   - "😎 Now We're Talking" = core element is clearly present AND supported by at least some relevant detail — does not need to be exhaustive
-
-2. DIAGNOSTIC QUESTIONS — ${section === 'complaint'
-  ? 'Generate concise, direct questions a SERVICE ADVISOR asks the CUSTOMER. Plain language only — no technical jargon, no DTCs, no industry abbreviations. Keep questions as short as possible while still being clear. One focused question per item — no compound questions. CRITICAL: Read the existing text carefully first — do NOT ask about anything that is already stated, described, or answered in the current entry. Only ask about genuine gaps.'
-  : 'Generate concise, direct questions for the technician or repair facility. Avoid industry abbreviations — spell things out in plain terms. Keep each question as short as possible while remaining specific. One focused question per item — no compound questions. CRITICAL: Read the existing text carefully first — do NOT ask about anything that is already stated, described, confirmed, or answered in the current entry. Only ask about genuine gaps not covered by what is already written. FLUID LEVELS: Whenever asking about any fluid level (oil, coolant, transmission fluid, brake fluid, power steering fluid, etc.), always ask specifically whether the level is above the MIN line and below the MAX line on the dipstick or reservoir — not just whether it is "normal" or "within spec".'
-}
-
-3. CORRECTED TEXT — Rewrite the ${sectionLabel} entry as a clean, professional repair order statement. Fix grammar, spelling, and clarity. Keep it factual, in third person, and as SHORT as possible — short sentences, no filler, no redundancy, no over-explanation. A good repair order statement is punchy and direct, not a paragraph. Do not add information not present in the original — only clean up what was written.${section === 'complaint' ? ' IMPORTANT: "Customer states" (or equivalent phrasing) must appear ONLY in the first sentence. Do NOT begin any subsequent sentence with "Customer states" or any variation of it — continue naturally without re-attributing every sentence.' : ''}${section === 'cause' ? ' Format as short declarative statements: what was found, what was measured, what the root cause is. Example style: "Scanned for DTCs. Found P0420. Tested O2 sensors — rear sensor response flat. Root cause: failed rear O2 sensor."' : ''}${section === 'correction' ? ' Format as short action statements: what was done, what was replaced, how it was verified. Example style: "Replaced rear O2 sensor. Cleared DTCs. Road tested — no return of fault. Repair verified."' : ''}
+1. CORRECTED TEXT — Rewrite the ${sectionLabel} entry as a clean, professional repair order statement. Fix grammar, spelling, and clarity. Keep it factual, in third person, and as SHORT as possible — short sentences, no filler, no redundancy, no over-explanation. A good repair order statement is punchy and direct, not a paragraph. Do not add information not present in the original — only clean up what was written.${section === 'complaint' ? ' IMPORTANT: "Customer states" (or equivalent phrasing) must appear ONLY in the first sentence. Do NOT begin any subsequent sentence with "Customer states" or any variation of it — continue naturally without re-attributing every sentence.' : ''}${section === 'cause' ? ' Format as short declarative statements: what was found, what was measured, what the root cause is. Example style: "Scanned for DTCs. Found P0420. Tested O2 sensors — rear sensor response flat. Root cause: failed rear O2 sensor."' : ''}${section === 'correction' ? ' Format as short action statements: what was done, what was replaced, how it was verified. Example style: "Replaced rear O2 sensor. Cleared DTCs. Road tested — no return of fault. Repair verified."' : ''}
 
 ${dedupClause}
 
 Respond ONLY with valid JSON — no markdown, no extra text:
 {
-  "quality": "😬 Come On Now|🙂 Getting Somewhere|😎 Now We're Talking",
-  "feedback": "One sentence of actionable feedback on this section.",
-  "corrected": "Professionally corrected version of the text.",
-  "questions": ["Q1?","Q2?","Q3?","Q4?","Q5?","Q6?"]
+  "corrected": "Professionally corrected version of the text."
 }`;
 
+  // ── CALL 1: Rewrite only ──────────────────────────────────
   try {
-    const res = await fetch('https://ccc-proxy.whitakerm56.workers.dev/', {
+    const res1 = await fetch('https://ccc-proxy.whitakerm56.workers.dev/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 4096,
+        max_tokens: 2048,
         messages: [{ role: 'user', content: prompt }]
       })
     });
 
-    const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
+    const data1 = await res1.json();
+    if (data1.error) throw new Error(data1.error.message);
 
-    const raw     = (data.content || []).map(b => b.text || '').join('');
-    const cleaned = raw.replace(/```json|```/g, '').trim();
-    const parsed  = JSON.parse(cleaned);
+    const raw1     = (data1.content || []).map(b => b.text || '').join('');
+    const cleaned1 = raw1.replace(/```json|```/g, '').trim();
+    const parsed1  = JSON.parse(cleaned1);
 
-    setBadge(section, parsed.quality, parsed.feedback);
-
-    // Update the box with the corrected text
-    if (parsed.corrected && parsed.corrected.trim()) {
-      document.getElementById(`t-${section}`).value = parsed.corrected.trim();
+    // Apply the rewrite immediately
+    if (parsed1.corrected && parsed1.corrected.trim()) {
+      document.getElementById(`t-${section}`).value = parsed1.corrected.trim();
     }
 
-    renderPills(
-      `qp-${section}`,
-      parsed.questions || [],
-      [],
-      [],
-      [],
-      []
-    );
+    // Show generating indicator for questions
+    document.getElementById(`qp-${section}`).innerHTML =
+      `<div class="q-loading"><div class="spin"></div>Generating questions...</div>`;
+
+    // ── CALL 2: Questions based on the rewritten text ──────
+    const rewrittenText = document.getElementById(`t-${section}`).value.trim();
+    const rewrittenComplaint  = section === 'complaint'  ? rewrittenText : document.getElementById('t-complaint').value.trim();
+    const rewrittenCause      = section === 'cause'      ? rewrittenText : document.getElementById('t-cause').value.trim();
+    const rewrittenCorrection = section === 'correction' ? rewrittenText : document.getElementById('t-correction').value.trim();
+
+    // Refresh dedup list now that rewrite is applied
+    const updatedQuestions = [];
+    ['complaint','cause','correction'].forEach(s => {
+      document.querySelectorAll(`#qp-${s} .q-pill-text`).forEach(el => {
+        const q = el.textContent.trim();
+        if (q) updatedQuestions.push(q);
+      });
+    });
+    const updatedDedupClause = updatedQuestions.length
+      ? `\n\nDO NOT REPEAT QUESTIONS: The following questions have already been asked. Do not generate any question that is the same or substantially similar to these:\n${updatedQuestions.map((q,i) => `${i+1}. ${q}`).join('\n')}`
+      : '';
+
+    const questionPrompt = `You are a master automotive diagnostic consultant with encyclopedic knowledge of OEM repair procedures, Technical Service Bulletins, known failure patterns, and factory diagnostic routines for all major vehicle makes and models.
+
+CONTEXT: ${diagnosticContext}
+
+VEHICLE: ${vehStr()}
+DTC CODES PRESENT: ${dtcStr}
+
+CCC DOCUMENTATION (after rewrite):
+  Complaint: "${rewrittenComplaint || '(not entered)'}"
+  Cause: "${rewrittenCause || '(not entered)'}"
+  Correction: "${rewrittenCorrection || '(not entered)'}"
+
+CURRENT SECTION FOCUS: ${sectionLabel.toUpperCase()}
+${sectionFocus}
+
+YOUR TASKS:
+
+1. QUALITY RATING — Evaluate the rewritten ${sectionLabel} entry:
+   - "😬 Come On Now" = vague, missing key info, very short, or missing the core element of this section
+   - "🙂 Getting Somewhere" = core element is present but supporting detail or context is thin
+   - "😎 Now We're Talking" = core element is clearly present AND supported by at least some relevant detail — does not need to be exhaustive
+
+2. DIAGNOSTIC QUESTIONS for the ${sectionLabel} section:
+
+${section === 'complaint'
+  ? 'Generate concise, direct questions a SERVICE ADVISOR asks the CUSTOMER. Plain language only — no technical jargon, no DTCs, no industry abbreviations. Keep questions as short as possible while still being clear. One focused question per item — no compound questions. CRITICAL: Read the existing text carefully first — do NOT ask about anything that is already stated, described, or answered in the current entry. Only ask about genuine gaps.'
+  : 'Generate concise, direct questions for the technician or repair facility. Avoid industry abbreviations — spell things out in plain terms. Keep each question as short as possible while remaining specific. One focused question per item — no compound questions. CRITICAL: Read the existing text carefully first — do NOT ask about anything that is already stated, described, confirmed, or answered in the current entry. Only ask about genuine gaps not covered by what is already written. FLUID LEVELS: Whenever asking about any fluid level (oil, coolant, transmission fluid, brake fluid, power steering fluid, etc.), always ask specifically whether the level is above the MIN line and below the MAX line on the dipstick or reservoir — not just whether it is "normal" or "within spec".'
+}
+${updatedDedupClause}
+
+Respond ONLY with valid JSON — no markdown, no extra text:
+{"questions": ["Q1?","Q2?","Q3?","Q4?","Q5?","Q6?"]}`;
+
+    const res2 = await fetch('https://ccc-proxy.whitakerm56.workers.dev/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        messages: [{ role: 'user', content: questionPrompt }]
+      })
+    });
+
+    const data2 = await res2.json();
+    if (data2.error) throw new Error(data2.error.message);
+
+    const raw2     = (data2.content || []).map(b => b.text || '').join('');
+    const cleaned2 = raw2.replace(/```json|```/g, '').trim();
+    const parsed2  = JSON.parse(cleaned2);
+
+    setBadge(section, parsed2.quality, parsed2.feedback);
+    renderPills(`qp-${section}`, parsed2.questions || [], [], [], [], []);
     if (btn) { btn.disabled = false; btn.textContent = 'Analyze'; }
 
   } catch(e) {
