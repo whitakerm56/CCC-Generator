@@ -625,7 +625,7 @@ function renderVeh(){
 function vehStr(){return[veh.year,veh.make,veh.model,veh.trim,veh.engine].filter(Boolean).join(' ')||'Unknown vehicle';}
 
 // ── BADGE HELPERS ─────────────────────────────────────────
-const badgeClass={'Come On Now':'badge-weak','Getting Somewhere':'badge-good',"Now We're Talking":'badge-strong'};
+const badgeClass={'😬 Come On Now':'badge-weak','🙂 Getting Somewhere':'badge-good',"😎 Now We're Talking":'badge-strong'};
 function setBadge(section,rating,feedback){
   const b=document.getElementById(`badge-${section}`);
   b.textContent=rating;
@@ -903,9 +903,9 @@ ${sectionFocus}
 YOUR TASKS FOR THIS SECTION:
 
 1. QUALITY RATING — Evaluate the ${sectionLabel} entry:
-   - "Come On Now" = vague, missing key info, or very short
-   - "Getting Somewhere" = has some useful detail but is clearly incomplete
-   - "Now We're Talking" = covers the key points with reasonable specificity — does not need to be exhaustive
+   - "😬 Come On Now" = vague, missing key info, or very short
+   - "🙂 Getting Somewhere" = has some useful detail but is clearly incomplete
+   - "😎 Now We're Talking" = covers the key points with reasonable specificity — does not need to be exhaustive
 
 2. DIAGNOSTIC QUESTIONS — ${section === 'complaint'
   ? 'Generate concise, direct questions a SERVICE ADVISOR asks the CUSTOMER. Plain language only — no technical jargon, no DTCs, no industry abbreviations. Keep questions as short as possible while still being clear. One focused question per item — no compound questions.'
@@ -918,7 +918,7 @@ ${dedupClause}
 
 Respond ONLY with valid JSON — no markdown, no extra text:
 {
-  "quality": "Come On Now|Getting Somewhere|Now We're Talking",
+  "quality": "😬 Come On Now|🙂 Getting Somewhere|😎 Now We're Talking",
   "feedback": "One sentence of actionable feedback on this section.",
   "corrected": "Professionally corrected version of the text.",
   "questions": ["Q1?","Q2?","Q3?","Q4?","Q5?","Q6?"]
