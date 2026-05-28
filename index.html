@@ -860,10 +860,6 @@ async function generateSection(section) {
 
   const existingPills = document.getElementById(`qp-${section}`);
   const hasExisting = existingPills.querySelector('.q-pill');
-  if (!hasExisting) {
-    existingPills.innerHTML =
-      `<div class="q-loading"><div class="spin"></div>Rewriting ${sectionLabel}...</div>`;
-  }
 
   const sectionFocus = {
     complaint:`The COMPLAINT section is the customer's voice — what they told the Service Advisor when they brought the vehicle in. The questions generated here are ONLY for a SERVICE ADVISOR to ask the CUSTOMER to extract a complete, accurate symptom description. Focus on: exactly what the customer is experiencing, when and how often it happens, under what conditions (cold start, highway speed, after rain, under load, etc.), how long it has been occurring, whether any warning lights are on, whether any recent repairs or events preceded the issue, and any sounds, smells, or sensations the customer noticed. The goal is a symptom picture detailed enough that a technician can attempt to duplicate the condition. IMPORTANT: Do NOT generate any questions about DTCs, diagnostic codes, scan tools, or technical diagnosis — the customer does not know about those things and that is not their domain. Do NOT ask the customer what codes are stored. Do NOT ask about the vehicle's mileage. Keep all questions in plain, everyday language a non-technical vehicle owner would understand.`,
