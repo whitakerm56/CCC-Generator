@@ -1062,6 +1062,60 @@ function renderPills(containerId, questions, dtcList, oemSteps, tsbs, commonCaus
     if (micBtn) micBtn.addEventListener('click', () => toggleAnswerMic(micBtn, input));
   });
 }
+
+// ── QUESTION ANSWER SUBMISSION ────────────────────────────
+async function submitAnswer(qid, question, containerId) {
+  const pill    = document.getElementById(qid);
+  const input   = pill.querySelector('.q-answer-input');
+  const row     = pill.querySelector('.q-answer-row');
+  const tag     = pill.querySelector('.q-answered-tag');
+  const answer  = input.value.trim();
+  if (!answer) return;
+
+  input.disabled = true;
+  pill.querySelector('.q-answer-submit').disabled = true;
+  tag.style.display  = 'block';
+  tag.textContent    = '⏳ Summarizing...';
+
+  const map = {
+    'qp-complaint':  { textareaId: 't-complaint',  section: 'complaint'  },
+    'qp-cause':      { textareaId: 't-cause',       section: 'cause'      },
+    'qp-correction': { textareaId: 't-correction',  section: 'correction' },
+  };
+  const target = map[containerId];
+  if (!target) return;
+
+  try {
+    const res = await fetch('https://ccc-proxy.whitakerm56.workers.dev/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 100,
+        messages: [{
+          role: 'user',
+          content: `Convert this question and answer into a single concise factual statement suitable for an automotive repair order. Be brief — one short sentence only. No preamble, no explanation, just the statement.\n\nQuestion: ${question}\nAnswer: ${answer}\n\nStatement:`
+        }]
+      })
+    });
+
+    const data      = await res.json();
+    const summary   = (data.content || []).map(b => b.text || '').join('').trim();
+    const textarea  = document.getElementById(target.textareaId);
+    const existing  = textarea.value.trim();
+    textarea.value  = existing ? existing + ' ' + summary : summary;
+
+    row.style.display  = 'none';
+    tag.textContent    = '✓ Added';
+    tag.style.color    = 'var(--green)';
+    pill.style.opacity = '0.6';
+
+  } catch(e) {
+    tag.textContent = '⚠ Error — try again';
+    input.disabled  = false;
+    pill.querySelector('.q-answer-submit').disabled = false;
+  }
+}
 </script>
 </body>
 </html>
