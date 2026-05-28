@@ -702,9 +702,8 @@ function toggleMic(section) {
   rec.interimResults  = true;
   rec.lang            = 'en-US';
 
-  let interimSpan = '';
-  // Track where existing text ends so we can append cleanly
-  const baseText = textarea.value;
+  // committed = confirmed text; we rebuild textarea as committed + interim each event
+  let committed = textarea.value;
 
   rec.onstart = () => {
     activeMicSection  = section;
@@ -721,18 +720,14 @@ function toggleMic(section) {
       if (e.results[i].isFinal) final += t;
       else interim += t;
     }
-    // Append confirmed final text to base; show interim as preview
     if (final) {
-      const sep = textarea.value.trim() ? ' ' : '';
-      textarea.value = textarea.value.trimEnd() + sep + final.trim();
-      interimSpan = '';
+      const sep = committed.trim() ? ' ' : '';
+      committed = committed.trimEnd() + sep + final.trim();
     }
-    // Show interim in the textarea as a live preview (will be replaced)
-    if (interim) {
-      interimSpan = interim;
-      const sep = textarea.value.trim() ? ' ' : '';
-      textarea.value = textarea.value.trimEnd() + sep + interim;
-    }
+    const preview = interim
+      ? committed.trimEnd() + (committed.trim() ? ' ' : '') + interim
+      : committed;
+    textarea.value = preview;
   };
 
   rec.onerror = (e) => {
@@ -792,6 +787,8 @@ function toggleAnswerMic(micBtn, input) {
     micBtn.classList.add('recording');
   };
 
+  let committedAnswer = input.value;
+
   rec.onresult = (e) => {
     let final = '', interim = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -800,12 +797,13 @@ function toggleAnswerMic(micBtn, input) {
       else interim += t;
     }
     if (final) {
-      const sep = input.value.trim() ? ' ' : '';
-      input.value = input.value.trimEnd() + sep + final.trim();
-    } else if (interim) {
-      const sep = input.value.trim() ? ' ' : '';
-      input.value = input.value.trimEnd() + sep + interim;
+      const sep = committedAnswer.trim() ? ' ' : '';
+      committedAnswer = committedAnswer.trimEnd() + sep + final.trim();
     }
+    const preview = interim
+      ? committedAnswer.trimEnd() + (committedAnswer.trim() ? ' ' : '') + interim
+      : committedAnswer;
+    input.value = preview;
   };
 
   rec.onerror = (e) => {
