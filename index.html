@@ -698,12 +698,9 @@ function toggleMic(section) {
   const textarea = document.getElementById(`t-${section}`);
   const rec      = new SpeechRecognition();
 
-  rec.continuous      = true;
-  rec.interimResults  = true;
-  rec.lang            = 'en-US';
-
-  // committed = confirmed text; we rebuild textarea as committed + interim each event
-  let committed = textarea.value;
+  rec.continuous     = true;
+  rec.interimResults = false;
+  rec.lang           = 'en-US';
 
   rec.onstart = () => {
     activeMicSection  = section;
@@ -713,21 +710,13 @@ function toggleMic(section) {
   };
 
   rec.onresult = (e) => {
-    let interim = '';
-    let final   = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      const t = e.results[i][0].transcript;
-      if (e.results[i].isFinal) final += t;
-      else interim += t;
+      if (e.results[i].isFinal) {
+        const t   = e.results[i][0].transcript.trim();
+        const sep = textarea.value.trim() ? ' ' : '';
+        textarea.value = textarea.value.trimEnd() + sep + t;
+      }
     }
-    if (final) {
-      const sep = committed.trim() ? ' ' : '';
-      committed = committed.trimEnd() + sep + final.trim();
-    }
-    const preview = interim
-      ? committed.trimEnd() + (committed.trim() ? ' ' : '') + interim
-      : committed;
-    textarea.value = preview;
   };
 
   rec.onerror = (e) => {
@@ -778,7 +767,7 @@ function toggleAnswerMic(micBtn, input) {
 
   const rec = new SpeechRecognition();
   rec.continuous     = true;
-  rec.interimResults = true;
+  rec.interimResults = false;
   rec.lang           = 'en-US';
 
   rec.onstart = () => {
@@ -787,23 +776,14 @@ function toggleAnswerMic(micBtn, input) {
     micBtn.classList.add('recording');
   };
 
-  let committedAnswer = input.value;
-
   rec.onresult = (e) => {
-    let final = '', interim = '';
     for (let i = e.resultIndex; i < e.results.length; i++) {
-      const t = e.results[i][0].transcript;
-      if (e.results[i].isFinal) final += t;
-      else interim += t;
+      if (e.results[i].isFinal) {
+        const t   = e.results[i][0].transcript.trim();
+        const sep = input.value.trim() ? ' ' : '';
+        input.value = input.value.trimEnd() + sep + t;
+      }
     }
-    if (final) {
-      const sep = committedAnswer.trim() ? ' ' : '';
-      committedAnswer = committedAnswer.trimEnd() + sep + final.trim();
-    }
-    const preview = interim
-      ? committedAnswer.trimEnd() + (committedAnswer.trim() ? ' ' : '') + interim
-      : committedAnswer;
-    input.value = preview;
   };
 
   rec.onerror = (e) => {
