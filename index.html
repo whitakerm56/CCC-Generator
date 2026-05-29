@@ -909,7 +909,7 @@ Respond ONLY with valid JSON — no markdown, no extra text:
 
   // ── CALL 1: Rewrite only ──────────────────────────────────
   try {
-    const res1 = await fetch('https://ccc-proxy.whitakerm56.workers.dev/', {
+    const res1 = await fetch('https://ccc-copilot-worker.whitakerm56.workers.dev/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -986,7 +986,7 @@ Respond ONLY with valid JSON — no markdown, no extra text:
   "questions": ["Q1?","Q2?","Q3?","Q4?","Q5?","Q6?"]
 }`;
 
-    const res2 = await fetch('https://ccc-proxy.whitakerm56.workers.dev/', {
+    const res2 = await fetch('https://ccc-copilot-worker.whitakerm56.workers.dev/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1078,7 +1078,7 @@ async function submitAnswer(qid, question, containerId) {
   if (!target) return;
 
   try {
-    const res = await fetch('https://ccc-proxy.whitakerm56.workers.dev/', {
+    const res = await fetch('https://ccc-copilot-worker.whitakerm56.workers.dev/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
