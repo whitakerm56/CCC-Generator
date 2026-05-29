@@ -915,7 +915,11 @@ Respond ONLY with valid JSON — no markdown, no extra text:
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 2048,
-        messages: [{ role: 'user', content: prompt }]
+        messages: [{ role: 'user', content: prompt }],
+        section: section,
+        complaint: document.getElementById('t-complaint').value.trim(),
+        cause: document.getElementById('t-cause').value.trim(),
+        correction: document.getElementById('t-correction').value.trim(),
       })
     });
 
@@ -993,7 +997,11 @@ Respond ONLY with valid JSON — no markdown, no extra text:
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 1024,
-        messages: [{ role: 'user', content: questionPrompt }]
+        messages: [{ role: 'user', content: questionPrompt }],
+        section: section,
+        complaint: document.getElementById('t-complaint').value.trim(),
+        cause: document.getElementById('t-cause').value.trim(),
+        correction: document.getElementById('t-correction').value.trim(),
       })
     });
 
