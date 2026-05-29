@@ -920,6 +920,7 @@ Respond ONLY with valid JSON — no markdown, no extra text:
     });
 
     const data1 = await res1.json();
+    if (data1.error?.message === 'NOT_AUTHORIZED') throw new Error('Your location is not authorized. Please contact support.');
     if (data1.error) throw new Error(data1.error.message);
 
     const raw1     = (data1.content || []).map(b => b.text || '').join('');
@@ -997,6 +998,7 @@ Respond ONLY with valid JSON — no markdown, no extra text:
     });
 
     const data2 = await res2.json();
+    if (data2.error?.message === 'NOT_AUTHORIZED') throw new Error('Your location is not authorized. Please contact support.');
     if (data2.error) throw new Error(data2.error.message);
 
     const raw2     = (data2.content || []).map(b => b.text || '').join('');
