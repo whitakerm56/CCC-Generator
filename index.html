@@ -573,11 +573,7 @@ function alert_show(msg,type='warn',dur=4000){
 }
 
 // ── ROLE ──────────────────────────────────────────────────
-// ── DIAGNOSTIC CONTEXT ────────────────────────────────────
-const diagnosticContext = `This tool is used by two types of professionals:
-1. SERVICE ADVISORS at automotive repair facilities — verifying a technician's diagnosis is complete, accurate, and defensible before presenting to a customer.
-2. CLAIMS ADJUSTERS at extended warranty companies — validating a repair facility's claim, establishing the true point of failure, and confirming the repair meets warranty coverage criteria.
-Generate questions and analysis that serve both audiences — questions should be rigorous enough to satisfy a claims adjuster and practical enough for a service advisor to ask a technician.`;
+
 
 // ── MANUAL VIN ────────────────────────────────────────────
 function applyManual(){
@@ -844,32 +840,13 @@ async function generateSection(section) {
   const complaint  = document.getElementById('t-complaint').value.trim();
   const cause      = document.getElementById('t-cause').value.trim();
   const correction = document.getElementById('t-correction').value.trim();
-  const content    = document.getElementById(`t-${section}`).value.trim();
 
-  // Extract DTCs from cause text
-  const dtcMatches = cause.match(/\b[PBCU][0-9]{4}\b/g) || [];
-  const dtcs       = [...new Set(dtcMatches.map(d => d.toUpperCase()))];
-  const dtcStr     = dtcs.length ? dtcs.join(', ') : 'None detected';
-
-  const sectionLabel = {complaint:'Complaint', cause:'Cause', correction:'Correction'}[section];
-
-  // Don't clear existing questions — keep them visible while re-analyzing
-  // Only update the badge to show analyzing state
   const btn = document.getElementById(`btn-${section}`);
   if (btn) { btn.disabled = true; btn.textContent = 'Analyzing...'; }
 
-  const existingPills = document.getElementById(`qp-${section}`);
-  const hasExisting = existingPills.querySelector('.q-pill');
+  const WORKER = 'https://ccc-copilot-worker.whitakerm56.workers.dev/';
 
-  const sectionFocus = {
-    complaint:`The COMPLAINT section is the customer's voice — what they told the Service Advisor when they brought the vehicle in. The questions generated here are ONLY for a SERVICE ADVISOR to ask the CUSTOMER to extract a complete, accurate symptom description. Focus on: exactly what the customer is experiencing, when and how often it happens, under what conditions (cold start, highway speed, after rain, under load, etc.), how long it has been occurring, whether any warning lights are on, whether any recent repairs or events preceded the issue, and any sounds, smells, or sensations the customer noticed. The goal is a symptom picture detailed enough that a technician can attempt to duplicate the condition. IMPORTANT: Do NOT generate any questions about DTCs, diagnostic codes, scan tools, or technical diagnosis — the customer does not know about those things and that is not their domain. Do NOT ask the customer what codes are stored. Do NOT ask about the vehicle's mileage. Keep all questions in plain, everyday language a non-technical vehicle owner would understand.`,
-    cause:`Focus on: what specific diagnostic procedure was followed step by step, exact measurements taken (voltage, resistance, pressure, flow rate) vs. factory specification, what scan data and live PIDs were observed, whether the technician confirmed the root cause vs. treating a symptom, whether the failure is primary or secondary to another condition, and whether applicable TSBs were checked and followed. DTC CODES: If the issue is electrical, emissions-related, powertrain, transmission, or any condition where a scan tool would typically be used, and the Cause text does not already list any DTC codes, you MUST generate a question asking what DTC codes were found during scanning. ADDITIONALLY — if the Complaint text mentions any warning light or indicator light of any kind (check engine light, service engine soon, ABS, traction control, stability control, TPMS, transmission, oil pressure, battery, or any other dashboard warning light), and the Cause text does not already list DTC codes, you MUST ask what DTC codes were present. Warning lights always warrant scanning — no exceptions. RECOMMENDED REPAIR: If the existing Cause text does not include any mention of a recommended repair, correction, or next step — you MUST generate a question asking what the recommended repair or correction is. If the text already mentions any repair recommendation, replacement, or corrective action (even briefly), do NOT ask this question.`,
-    correction:`Focus on: whether the repair directly addresses the confirmed root cause, whether the correct repair procedure was followed, whether the vehicle was road tested after repair, whether the fault was retested and confirmed resolved, and whether the repair meets warranty coverage criteria. DTC VERIFICATION: If the Cause text lists any DTC codes, or if the Complaint mentions any warning light, and the Correction text does not already confirm that DTCs were cleared and verified as non-returning — you MUST generate a question asking whether the DTCs were cleared after repair AND whether sufficient ignition cycles were completed to confirm the codes did not return.`
-  }[section];
-
-
-  // Collect already-asked questions from the other two sections to avoid duplicates
-  // Collect already-asked questions from ALL sections (including current) to avoid repeats
+  // Collect existing questions for dedup
   const existingQuestions = [];
   ['complaint','cause','correction'].forEach(s => {
     document.querySelectorAll(`#qp-${s} .q-pill-text`).forEach(el => {
@@ -877,49 +854,20 @@ async function generateSection(section) {
       if (q) existingQuestions.push(q);
     });
   });
-  const dedupClause = existingQuestions.length
-    ? `\n\nDO NOT REPEAT QUESTIONS: The following questions have already been asked. Do not generate any question that is the same or substantially similar to these:\n${existingQuestions.map((q,i) => `${i+1}. ${q}`).join('\n')}`
-    : '';
 
-  const prompt = `You are a master automotive diagnostic consultant with encyclopedic knowledge of OEM repair procedures, Technical Service Bulletins, known failure patterns, and factory diagnostic routines for all major vehicle makes and models.
-
-CONTEXT: ${diagnosticContext}
-
-VEHICLE: ${vehStr()}
-DTC CODES PRESENT: ${dtcStr}
-
-CCC DOCUMENTATION:
-  Complaint: "${complaint || '(not entered)'}"
-  Cause: "${cause || '(not entered)'}"
-  Correction: "${correction || '(not entered)'}"
-
-CURRENT SECTION FOCUS: ${sectionLabel.toUpperCase()}
-${sectionFocus}
-
-YOUR TASK FOR THIS SECTION:
-
-1. CORRECTED TEXT — Rewrite the ${sectionLabel} entry as a clean, professional repair order statement. Fix grammar, spelling, and clarity. Keep it factual, in third person, and as SHORT as possible — short sentences, no filler, no redundancy, no over-explanation. A good repair order statement is punchy and direct, not a paragraph. Do not add information not present in the original — only clean up what was written.${section === 'complaint' ? ' IMPORTANT: "Customer states" (or equivalent phrasing) must appear ONLY in the first sentence. Do NOT begin any subsequent sentence with "Customer states" or any variation of it — continue naturally without re-attributing every sentence.' : ''}${section === 'cause' ? ' Format as short declarative statements: what was found, what was measured, what the root cause is. Example style: "Scanned for DTCs. Found P0420. Tested O2 sensors — rear sensor response flat. Root cause: failed rear O2 sensor."' : ''}${section === 'correction' ? ' Format as short action statements: what was done, what was replaced, how it was verified. Example style: "Replaced rear O2 sensor. Cleared DTCs. Road tested — no return of fault. Repair verified."' : ''}
-
-${dedupClause}
-
-Respond ONLY with valid JSON — no markdown, no extra text:
-{
-  "corrected": "Professionally corrected version of the text."
-}`;
-
-  // ── CALL 1: Rewrite only ──────────────────────────────────
   try {
-    const res1 = await fetch('https://ccc-copilot-worker.whitakerm56.workers.dev/', {
+    // ── CALL 1: Rewrite ────────────────────────────────────
+    const res1 = await fetch(WORKER, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 2048,
-        messages: [{ role: 'user', content: prompt }],
-        section: section,
-        complaint: document.getElementById('t-complaint').value.trim(),
-        cause: document.getElementById('t-cause').value.trim(),
-        correction: document.getElementById('t-correction').value.trim(),
+        call_type: 'rewrite',
+        section,
+        complaint,
+        cause,
+        correction,
+        vehicle: vehStr(),
+        existing_questions: existingQuestions,
       })
     });
 
@@ -927,22 +875,20 @@ Respond ONLY with valid JSON — no markdown, no extra text:
     if (data1.error?.message === 'NOT_AUTHORIZED') throw new Error('Your location is not authorized. Please contact support.');
     if (data1.error) throw new Error(data1.error.message);
 
-    const raw1     = (data1.content || []).map(b => b.text || '').join('');
-    const cleaned1 = raw1.replace(/```json|```/g, '').trim();
-    const parsed1  = JSON.parse(cleaned1);
+    const raw1    = (data1.content || []).map(b => b.text || '').join('');
+    const parsed1 = JSON.parse(raw1.replace(/```json|```/g, '').trim());
 
-    // Apply the rewrite immediately
     if (parsed1.corrected && parsed1.corrected.trim()) {
       document.getElementById(`t-${section}`).value = parsed1.corrected.trim();
     }
 
-    // ── CALL 2: Questions based on the rewritten text ──────
-    const rewrittenText = document.getElementById(`t-${section}`).value.trim();
+    // ── CALL 2: Quality + Questions ──────────────────────────
+    const rewrittenText       = document.getElementById(`t-${section}`).value.trim();
     const rewrittenComplaint  = section === 'complaint'  ? rewrittenText : document.getElementById('t-complaint').value.trim();
     const rewrittenCause      = section === 'cause'      ? rewrittenText : document.getElementById('t-cause').value.trim();
     const rewrittenCorrection = section === 'correction' ? rewrittenText : document.getElementById('t-correction').value.trim();
 
-    // Refresh dedup list now that rewrite is applied
+    // Refresh dedup list after rewrite is applied
     const updatedQuestions = [];
     ['complaint','cause','correction'].forEach(s => {
       document.querySelectorAll(`#qp-${s} .q-pill-text`).forEach(el => {
@@ -950,58 +896,18 @@ Respond ONLY with valid JSON — no markdown, no extra text:
         if (q) updatedQuestions.push(q);
       });
     });
-    const updatedDedupClause = updatedQuestions.length
-      ? `\n\nDO NOT REPEAT QUESTIONS: The following questions have already been asked. Do not generate any question that is the same or substantially similar to these:\n${updatedQuestions.map((q,i) => `${i+1}. ${q}`).join('\n')}`
-      : '';
 
-    const questionPrompt = `You are a master automotive diagnostic consultant with encyclopedic knowledge of OEM repair procedures, Technical Service Bulletins, known failure patterns, and factory diagnostic routines for all major vehicle makes and models.
-
-CONTEXT: ${diagnosticContext}
-
-VEHICLE: ${vehStr()}
-DTC CODES PRESENT: ${dtcStr}
-
-CCC DOCUMENTATION (after rewrite):
-  Complaint: "${rewrittenComplaint || '(not entered)'}"
-  Cause: "${rewrittenCause || '(not entered)'}"
-  Correction: "${rewrittenCorrection || '(not entered)'}"
-
-CURRENT SECTION FOCUS: ${sectionLabel.toUpperCase()}
-${sectionFocus}
-
-YOUR TASKS:
-
-1. QUALITY RATING — Evaluate the rewritten ${sectionLabel} entry:
-   - "Weak" = vague, missing key info, very short, or missing the core element of this section
-   - "Good" = core element is present but supporting detail or context is thin
-   - "Great" = core element clearly present AND supported by at least some relevant detail — does not need to be exhaustive
-
-2. DIAGNOSTIC QUESTIONS for the ${sectionLabel} section:
-
-${section === 'complaint'
-  ? 'Generate concise, direct questions a SERVICE ADVISOR asks the CUSTOMER. Plain language only — no technical jargon, no DTCs, no industry abbreviations. Keep questions as short as possible while still being clear. One focused question per item — no compound questions. CRITICAL: Read the existing text carefully first — do NOT ask about anything that is already stated, described, or answered in the current entry. Only ask about genuine gaps.'
-  : 'Generate concise, direct questions for the technician or repair facility. Avoid industry abbreviations — spell things out in plain terms. Keep each question as short as possible while remaining specific. One focused question per item — no compound questions. CRITICAL: Read the existing text carefully first — do NOT ask about anything that is already stated, described, confirmed, or answered in the current entry. Only ask about genuine gaps not covered by what is already written. MEASUREMENT RESULTS: If the text already documents a specific measurement result or reading (e.g. a voltage, pressure, or temperature value), do NOT ask whether that test was performed — the result proves it was. You may still ask about the specific conditions of the test (e.g. under load, at operating temperature) if those conditions are not stated. FLUID LEVELS: Whenever asking about any fluid level (oil, coolant, transmission fluid, brake fluid, power steering fluid, etc.), always ask specifically whether the level is above the MIN line and below the MAX line on the dipstick or reservoir — not just whether it is "normal" or "within spec".'
-}
-${updatedDedupClause}
-
-Respond ONLY with valid JSON — no markdown, no extra text:
-{
-  "quality": "Weak|Good|Great",
-  "feedback": "One sentence of actionable feedback on this section.",
-  "questions": ["Q1?","Q2?","Q3?","Q4?","Q5?","Q6?"]
-}`;
-
-    const res2 = await fetch('https://ccc-copilot-worker.whitakerm56.workers.dev/', {
+    const res2 = await fetch(WORKER, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1024,
-        messages: [{ role: 'user', content: questionPrompt }],
-        section: section,
-        complaint: document.getElementById('t-complaint').value.trim(),
-        cause: document.getElementById('t-cause').value.trim(),
-        correction: document.getElementById('t-correction').value.trim(),
+        call_type: 'questions',
+        section,
+        complaint:   rewrittenComplaint,
+        cause:       rewrittenCause,
+        correction:  rewrittenCorrection,
+        vehicle:     vehStr(),
+        existing_questions: updatedQuestions,
       })
     });
 
@@ -1009,11 +915,10 @@ Respond ONLY with valid JSON — no markdown, no extra text:
     if (data2.error?.message === 'NOT_AUTHORIZED') throw new Error('Your location is not authorized. Please contact support.');
     if (data2.error) throw new Error(data2.error.message);
 
-    const raw2     = (data2.content || []).map(b => b.text || '').join('');
-    const cleaned2 = raw2.replace(/```json|```/g, '').trim();
-    const parsed2  = JSON.parse(cleaned2);
+    const raw2    = (data2.content || []).map(b => b.text || '').join('');
+    const parsed2 = JSON.parse(raw2.replace(/```json|```/g, '').trim());
 
-    setBadge(section, parsed2.quality, parsed2.feedback);
+    setBadge(section, parsed2.rating, parsed2.feedback);
     renderPills(`qp-${section}`, parsed2.questions || [], [], [], [], []);
     if (btn) { btn.disabled = false; btn.textContent = 'Analyze'; }
 
@@ -1024,46 +929,6 @@ Respond ONLY with valid JSON — no markdown, no extra text:
   }
 }
 
-function renderPills(containerId, questions, dtcList, oemSteps, tsbs, commonCauses){
-  const c = document.getElementById(containerId);
-  let html = '';
-
-  // Diagnostic questions
-  if (questions && questions.length) {
-    html += `<div class="q-section-label">QUESTIONS TO ASK</div>`;
-    questions.forEach((q, i) => {
-      const qid = `q-${containerId}-${i}`;
-      const safeQ = q.replace(/"/g, '&quot;');
-      html += `
-        <div class="q-pill q-interactive" id="${qid}" data-question="${safeQ}" data-container="${containerId}">
-          <div class="q-pill-text">${q}</div>
-          <div class="q-answer-row">
-            <button class="q-mic-btn" title="Speak answer" aria-label="Speak answer"><i class="ti ti-microphone" aria-hidden="true"></i></button>
-            <input class="q-answer-input" type="text" placeholder="Type answer and press Enter..." />
-            <button class="q-answer-submit">→</button>
-          </div>
-          <div class="q-answered-tag" style="display:none;">✓ Added</div>
-        </div>`;
-    });
-  }
-
-  c.innerHTML = html || '<div class="q-empty">No questions generated.</div>';
-
-  // Wire up answer inputs via delegation
-  c.querySelectorAll('.q-interactive').forEach(pill => {
-    const input  = pill.querySelector('.q-answer-input');
-    const btn    = pill.querySelector('.q-answer-submit');
-    const micBtn = pill.querySelector('.q-mic-btn');
-    const submit = () => {
-      const question    = pill.dataset.question;
-      const containerId = pill.dataset.container;
-      submitAnswer(pill.id, question, containerId);
-    };
-    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
-    btn.addEventListener('click', submit);
-    if (micBtn) micBtn.addEventListener('click', () => toggleAnswerMic(micBtn, input));
-  });
-}
 
 // ── QUESTION ANSWER SUBMISSION ────────────────────────────
 async function submitAnswer(qid, question, containerId) {
