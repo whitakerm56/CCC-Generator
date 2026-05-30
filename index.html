@@ -930,6 +930,49 @@ async function generateSection(section) {
 }
 
 
+
+function renderPills(containerId, questions, dtcList, oemSteps, tsbs, commonCauses){
+  const c = document.getElementById(containerId);
+  let html = '';
+
+  // Diagnostic questions
+  if (questions && questions.length) {
+    html += `<div class="q-section-label">QUESTIONS TO ASK</div>`;
+    questions.forEach((q, i) => {
+      const qid = `q-${containerId}-${i}`;
+      const safeQ = q.replace(/"/g, '&quot;');
+      html += `
+        <div class="q-pill q-interactive" id="${qid}" data-question="${safeQ}" data-container="${containerId}">
+          <div class="q-pill-text">${q}</div>
+          <div class="q-answer-row">
+            <button class="q-mic-btn" title="Speak answer" aria-label="Speak answer"><i class="ti ti-microphone" aria-hidden="true"></i></button>
+            <input class="q-answer-input" type="text" placeholder="Type answer and press Enter..." />
+            <button class="q-answer-submit">→</button>
+          </div>
+          <div class="q-answered-tag" style="display:none;">✓ Added</div>
+        </div>`;
+    });
+  }
+
+  c.innerHTML = html || '<div class="q-empty">No questions generated.</div>';
+
+  // Wire up answer inputs via delegation
+  c.querySelectorAll('.q-interactive').forEach(pill => {
+    const input  = pill.querySelector('.q-answer-input');
+    const btn    = pill.querySelector('.q-answer-submit');
+    const micBtn = pill.querySelector('.q-mic-btn');
+    const submit = () => {
+      const question    = pill.dataset.question;
+      const containerId = pill.dataset.container;
+      submitAnswer(pill.id, question, containerId);
+    };
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+    btn.addEventListener('click', submit);
+    if (micBtn) micBtn.addEventListener('click', () => toggleAnswerMic(micBtn, input));
+  });
+}
+
+
 // ── QUESTION ANSWER SUBMISSION ────────────────────────────
 async function submitAnswer(qid, question, containerId) {
   const pill    = document.getElementById(qid);
