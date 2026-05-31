@@ -545,6 +545,8 @@ footer a{color:var(--text3);}
 <footer>
   CCC Co-Pilot · Recall &amp; TSB data from <a href="https://www.nhtsa.gov" target="_blank">NHTSA.gov</a> · AI by <a href="https://anthropic.com" target="_blank">Anthropic Claude</a>
   · AI-generated content can make mistakes. Please double check responses. Current US patent pending.
+      <span style="margin-left:16px;opacity:0.5;">|</span>
+      <a href="#" onclick="manageBilling(event)" style="margin-left:16px;color:#6b7fd7;font-size:inherit;text-decoration:none;opacity:0.7;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">Manage Billing</a>
 </footer>
 
 <script>
@@ -627,6 +629,30 @@ function setBadge(section,rating,feedback){
   b.textContent=rating;
   b.className='quality-badge '+(badgeClass[rating]||'badge-good');
   document.getElementById(`fb-${section}`).textContent=feedback||'';
+}
+
+
+// ── MANAGE BILLING ───────────────────────────────────────────
+async function manageBilling(e) {
+  e.preventDefault();
+  const link = e.target;
+  link.textContent = 'Loading...';
+  try {
+    const res = await fetch('https://api.ccccopilot.com/billing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await res.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      alert(data.error || 'Could not open billing portal. Please contact support@ccccopilot.com');
+      link.textContent = 'Manage Billing';
+    }
+  } catch(err) {
+    alert('Network error. Please try again.');
+    link.textContent = 'Manage Billing';
+  }
 }
 
 // ── RESET FORM ─────────────────────────────────────────────
