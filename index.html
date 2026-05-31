@@ -633,25 +633,53 @@ function setBadge(section,rating,feedback){
 
 
 // ── MANAGE BILLING ───────────────────────────────────────────
-async function manageBilling(e) {
+function manageBilling(e) {
   e.preventDefault();
-  const link = e.target;
-  link.textContent = 'Loading...';
+  document.getElementById('billing-pin-modal').style.display = 'flex';
+  document.getElementById('billing-pin-input').value = '';
+  document.getElementById('billing-pin-error').style.display = 'none';
+  setTimeout(() => document.getElementById('billing-pin-input').focus(), 100);
+}
+
+function closeBillingModal() {
+  document.getElementById('billing-pin-modal').style.display = 'none';
+}
+
+async function submitBillingPin() {
+  const pin = document.getElementById('billing-pin-input').value.trim();
+  const err = document.getElementById('billing-pin-error');
+  const btn = document.getElementById('billing-pin-btn');
+  err.style.display = 'none';
+
+  if (!/^[0-9]{4}$/.test(pin)) {
+    err.textContent = 'Please enter your 4-digit billing PIN.';
+    err.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Verifying...';
+
   try {
     const res = await fetch('https://api.ccccopilot.com/billing', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin })
     });
     const data = await res.json();
     if (data.url) {
       window.location.href = data.url;
     } else {
-      alert(data.error || 'Could not open billing portal. Please contact support@ccccopilot.com');
-      link.textContent = 'Manage Billing';
+      err.textContent = data.error || 'Could not open billing portal.';
+      err.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Open Billing Portal →';
     }
-  } catch(err) {
-    alert('Network error. Please try again.');
-    link.textContent = 'Manage Billing';
+  } catch(e) {
+    err.textContent = 'Network error. Please try again.';
+    err.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Open Billing Portal →';
   }
 }
 
@@ -1053,5 +1081,29 @@ async function submitAnswer(qid, question, containerId) {
   }
 }
 </script>
+
+<!-- BILLING PIN MODAL -->
+<div id="billing-pin-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;align-items:center;justify-content:center;padding:24px;">
+  <div style="background:#18181c;border:1px solid #2a2a30;border-radius:8px;padding:36px;width:100%;max-width:360px;position:relative;">
+    <button onclick="closeBillingModal()" style="position:absolute;top:12px;right:16px;background:none;border:none;color:#71717a;font-size:22px;cursor:pointer;">×</button>
+    <div style="font-family:var(--font-cond,monospace);font-size:11px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#6b7fd7;margin-bottom:16px;">Billing Portal Access</div>
+    <h3 style="font-size:18px;font-weight:600;margin-bottom:8px;">Enter Your Billing PIN</h3>
+    <p style="font-size:13px;color:#71717a;margin-bottom:20px;line-height:1.5;">Enter the 4-digit PIN you created when you activated your account.</p>
+    <input id="billing-pin-input" type="password" maxlength="4" inputmode="numeric" pattern="[0-9]*"
+      placeholder="••••"
+      onkeydown="if(event.key==='Enter')submitBillingPin()"
+      oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+      style="width:100%;background:#111113;border:1px solid #2a2a30;border-radius:4px;padding:14px;color:#f4f4f5;font-size:28px;letter-spacing:0.4em;text-align:center;outline:none;margin-bottom:8px;"
+      onfocus="this.style.borderColor='#f97316'" onblur="this.style.borderColor='#2a2a30'"/>
+    <div id="billing-pin-error" style="display:none;color:#ef4444;font-size:12px;margin-bottom:12px;"></div>
+    <button id="billing-pin-btn" onclick="submitBillingPin()"
+      style="width:100%;background:#f97316;color:#0a0a0b;font-size:14px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:14px;border-radius:4px;border:none;cursor:pointer;margin-top:4px;">
+      Open Billing Portal →
+    </button>
+    <p style="text-align:center;margin-top:12px;font-size:11px;color:#71717a;">
+      Forgot your PIN? Email <a href="mailto:support@ccccopilot.com" style="color:#6b7fd7;">support@ccccopilot.com</a>
+    </p>
+  </div>
+</div>
 </body>
 </html>
