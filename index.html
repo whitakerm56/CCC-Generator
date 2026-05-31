@@ -844,7 +844,7 @@ async function generateSection(section) {
   const btn = document.getElementById(`btn-${section}`);
   if (btn) { btn.disabled = true; btn.textContent = 'Analyzing...'; }
 
-  const WORKER = 'https://ccc-copilot-worker.whitakerm56.workers.dev/';
+  const WORKER = 'https://api.ccccopilot.com/';
 
   // Collect existing questions for dedup
   const existingQuestions = [];
@@ -996,7 +996,7 @@ async function submitAnswer(qid, question, containerId) {
   if (!target) return;
 
   try {
-    const res = await fetch('https://ccc-copilot-worker.whitakerm56.workers.dev/', {
+    const res = await fetch('https://api.ccccopilot.com/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
