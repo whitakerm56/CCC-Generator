@@ -632,6 +632,17 @@ function setBadge(section,rating,feedback){
 }
 
 
+
+// ── SUBSCRIBE MODAL ───────────────────────────────────────────
+function showSubscribeModal() {
+  // Re-enable any disabled buttons
+  ['complaint','cause','correction'].forEach(s => {
+    const btn = document.getElementById(`btn-${s}`);
+    if (btn) { btn.disabled = false; btn.textContent = 'Analyze'; }
+  });
+  document.getElementById('subscribe-modal').style.display = 'flex';
+}
+
 // ── MANAGE BILLING ───────────────────────────────────────────
 function manageBilling(e) {
   e.preventDefault();
@@ -926,7 +937,7 @@ async function generateSection(section) {
     });
 
     const data1 = await res1.json();
-    if (data1.error?.message === 'NOT_AUTHORIZED') throw new Error('Your location is not authorized. Please contact support.');
+    if (data1.error?.message === 'NOT_AUTHORIZED') { showSubscribeModal(); return; }
     if (data1.error) throw new Error(data1.error.message);
 
     const raw1    = (data1.content || []).map(b => b.text || '').join('');
@@ -966,7 +977,7 @@ async function generateSection(section) {
     });
 
     const data2 = await res2.json();
-    if (data2.error?.message === 'NOT_AUTHORIZED') throw new Error('Your location is not authorized. Please contact support.');
+    if (data2.error?.message === 'NOT_AUTHORIZED') { showSubscribeModal(); return; }
     if (data2.error) throw new Error(data2.error.message);
 
     const raw2    = (data2.content || []).map(b => b.text || '').join('');
@@ -1081,6 +1092,56 @@ async function submitAnswer(qid, question, containerId) {
   }
 }
 </script>
+
+
+<!-- SUBSCRIBE MODAL -->
+<div id="subscribe-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:1000;align-items:center;justify-content:center;padding:24px;">
+  <div style="background:#18181c;border:1px solid rgba(249,115,22,0.3);border-radius:8px;padding:48px 40px;width:100%;max-width:480px;text-align:center;position:relative;box-shadow:0 0 80px rgba(249,115,22,0.1);">
+
+    <!-- Icon -->
+    <div style="width:64px;height:64px;background:rgba(249,115,22,0.1);border:2px solid rgba(249,115,22,0.3);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;">
+      <svg width="28" height="28" fill="none" stroke="#f97316" stroke-width="2" viewBox="0 0 24 24">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+    </div>
+
+    <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#f97316;margin-bottom:16px;">Subscription Required</div>
+
+    <h2 style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:0.02em;margin-bottom:12px;line-height:1.1;">
+      Your Location Isn't Activated Yet
+    </h2>
+
+    <p style="font-size:15px;color:#a1a1aa;line-height:1.7;margin-bottom:28px;">
+      CCC Co-Pilot subscriptions are tied to your shop's location.
+      Subscribe now to unlock full access for your entire team — no per-seat fees.
+    </p>
+
+    <!-- Price callout -->
+    <div style="background:rgba(249,115,22,0.07);border:1px solid rgba(249,115,22,0.2);border-radius:5px;padding:16px 20px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;">
+      <div style="text-align:left;">
+        <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#f97316;margin-bottom:4px;">Monthly Plan</div>
+        <div style="font-size:13px;color:#a1a1aa;">Unlimited use · One location</div>
+      </div>
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:32px;color:#f4f4f5;letter-spacing:0.02em;">$199<span style="font-size:18px;color:#71717a;">.84/mo</span></div>
+    </div>
+
+    <a href="https://www.ccccopilot.com/#pricing" 
+       style="display:block;background:#f97316;color:#0a0a0b;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:16px;border-radius:4px;text-decoration:none;margin-bottom:12px;transition:background 0.2s;"
+       onmouseover="this.style.background='#fb923c'" onmouseout="this.style.background='#f97316'">
+      Start Your Subscription →
+    </a>
+
+    <button onclick="document.getElementById('subscribe-modal').style.display='none'"
+      style="background:none;border:none;color:#71717a;font-family:'Barlow Condensed',sans-serif;font-size:13px;letter-spacing:0.06em;text-transform:uppercase;cursor:pointer;padding:8px;">
+      Dismiss
+    </button>
+
+    <p style="margin-top:16px;font-size:12px;color:#52525b;">
+      Already subscribed? Make sure you're on your shop's internet connection.<br/>
+      Need help? <a href="mailto:support@ccccopilot.com" style="color:#6b7fd7;">support@ccccopilot.com</a>
+    </p>
+  </div>
+</div>
 
 <!-- BILLING PIN MODAL -->
 <div id="billing-pin-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;align-items:center;justify-content:center;padding:24px;">
